@@ -34,13 +34,139 @@ AUSTRIAN_RED: Tuple[int, int, int] = (237, 41, 57)  # #ED2939
 GOLDEN_RATIO: float = 1.618033988749895
 
 
+def create_rectangle_mask(
+    width: int,
+    height: int,
+    bl_x: float,
+    bl_y: float,
+    tr_x: float,
+    tr_y: float
+) -> npt.NDArray[np.bool_]:
+    """
+    Create a rectangular mask for dithering.
+
+    Args:
+        width: Image width in pixels
+        height: Image height in pixels
+        bl_x: Bottom-left X coordinate (0.0 to 1.0)
+        bl_y: Bottom-left Y coordinate (0.0 to 1.0)
+        tr_x: Top-right X coordinate (0.0 to 1.0)
+        tr_y: Top-right Y coordinate (0.0 to 1.0)
+
+    Returns:
+        Boolean mask array where True indicates dithering area
+    """
+    mask = np.zeros((height, width), dtype=bool)
+
+    # Convert fractions to pixel coordinates
+    # Y coordinates: 0.0 = top, 1.0 = bottom (inverted for image coordinates)
+    x1 = int(bl_x * width)
+    y1 = int((1.0 - tr_y) * height)  # tr_y is top, invert
+    x2 = int(tr_x * width)
+    y2 = int((1.0 - bl_y) * height)  # bl_y is bottom, invert
+
+    # Ensure coordinates are within bounds
+    x1 = max(0, min(x1, width - 1))
+    x2 = max(0, min(x2, width - 1))
+    y1 = max(0, min(y1, height - 1))
+    y2 = max(0, min(y2, height - 1))
+
+    # Fill the rectangle
+    if x2 > x1 and y2 > y1:
+        mask[y1:y2, x1:x2] = True
+
+    return mask
+
+
+def create_circle_mask(
+    width: int,
+    height: int,
+    center_x: float,
+    center_y: float,
+    radius: float
+) -> npt.NDArray[np.bool_]:
+    """
+    Create a circular mask for dithering.
+
+    Args:
+        width: Image width in pixels
+        height: Image height in pixels
+        center_x: Center X coordinate (0.0 to 1.0)
+        center_y: Center Y coordinate (0.0 to 1.0)
+        radius: Radius (0.0 to 1.0, fraction of image dimensions)
+
+    Returns:
+        Boolean mask array where True indicates dithering area
+    """
+    # Convert fractions to pixel coordinates
+    cx = center_x * width
+    cy = center_y * height
+
+    # Use average of width and height for radius calculation
+    r_pixels = radius * (width + height) / 2.0
+
+    # Create coordinate grids
+    y, x = np.ogrid[:height, :width]
+
+    # Calculate distances from center
+    distances = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+
+    # Create mask
+    mask = distances <= r_pixels
+
+    return mask
+
+
+def create_gradient_mask(
+    width: int,
+    height: int,
+    split_ratio: float,
+    cut_direction: Literal['vertical', 'horizontal'],
+    fade_min: float
+) -> npt.NDArray[np.float64]:
+    """
+    Create a gradient mask for fade-out effect in cut modes.
+
+    Args:
+        width: Image width in pixels
+        height: Image height in pixels
+        split_ratio: Position of the cut (0.0 to 1.0)
+        cut_direction: 'vertical' or 'horizontal'
+        fade_min: Minimum density at the far edge (0.0 to 1.0)
+
+    Returns:
+        Float mask array with values from fade_min to 1.0
+    """
+    mask = np.zeros((height, width), dtype=np.float64)
+
+    if cut_direction == 'vertical':
+        split_pos = int(width * split_ratio)
+        dither_width = width - split_pos
+
+        if dither_width > 0:
+            # Create gradient from 1.0 at cut line to fade_min at right edge
+            gradient = np.linspace(1.0, fade_min, dither_width)
+            mask[:, split_pos:] = gradient[np.newaxis, :]
+    else:  # horizontal
+        split_pos = int(height * split_ratio)
+        dither_height = height - split_pos
+
+        if dither_height > 0:
+            # Create gradient from 1.0 at cut line to fade_min at bottom edge
+            gradient = np.linspace(1.0, fade_min, dither_height)
+            mask[split_pos:, :] = gradient[:, np.newaxis]
+
+    return mask
+
+
 def floyd_steinberg_dither(
     image_array: npt.NDArray[np.integer],
     threshold: int = 128,
     randomize: bool = True,
     jitter: float = 15.0,
     threshold_offset: float = 0.0,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    density_mask: Optional[npt.NDArray[np.float64]] = None
 ) -> npt.NDArray[np.uint8]:
     """
     Apply Floyd-Steinberg dithering algorithm with optional randomization.
@@ -55,6 +181,8 @@ def floyd_steinberg_dither(
         jitter: Amount of random noise to add (±jitter). Default: 15.0
         threshold_offset: Bias added to threshold. Positive = darker (more red). Default: 0.0
         seed: Random seed for reproducible results.
+        density_mask: Optional mask controlling dithering density (0.0 to 1.0).
+                     Values < 1.0 probabilistically skip pixels for fade effects.
 
     Returns:
         Binary dithered array
@@ -74,12 +202,29 @@ def floyd_steinberg_dither(
     else:
         random_noise = np.zeros((height, width))
 
+    # Generate random values for density mask if provided
+    density_random: Optional[npt.NDArray[np.float64]] = None
+    if density_mask is not None:
+        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+
     for y in range(height):
         for x in range(width):
             old_pixel = img[y, x]
             # Apply randomized threshold to reduce regular patterns
             adjusted_threshold = threshold + random_noise[y, x] + threshold_offset
-            new_pixel = 255 if old_pixel > adjusted_threshold else 0
+
+            # Check density mask - probabilistically skip pixels for fade effect
+            should_dither = True
+            if density_mask is not None and density_random is not None:
+                if density_random[y, x] > density_mask[y, x]:
+                    # Skip this pixel, force to white
+                    should_dither = False
+                    new_pixel = 255.0
+                else:
+                    new_pixel = 255 if old_pixel > adjusted_threshold else 0
+            else:
+                new_pixel = 255 if old_pixel > adjusted_threshold else 0
+
             img[y, x] = new_pixel
 
             error = old_pixel - new_pixel
@@ -135,7 +280,16 @@ def dither_image(
     reference_width: int = 1024,
     darkness_offset: float = 0.0,
     seed: Optional[int] = None,
-    output_path: Optional[Union[str, Path]] = None
+    output_path: Optional[Union[str, Path]] = None,
+    mode: Literal['cut', 'rect', 'circle'] = 'cut',
+    rect_bl_x: float = 0.2,
+    rect_bl_y: float = 0.2,
+    rect_tr_x: float = 0.8,
+    rect_tr_y: float = 0.8,
+    circle_x: float = 0.5,
+    circle_y: float = 0.5,
+    circle_r: float = 0.3,
+    fade: Optional[float] = None
 ) -> Path:
     """
     Apply dithering to a portion of an image using Austrian flag red.
@@ -152,6 +306,15 @@ def dither_image(
         darkness_offset: Bias for darkness.
         seed: Random seed for reproducible results.
         output_path: Optional path for output file. If None, generated from input filename.
+        mode: Dithering mode: 'cut' (default), 'rect' (rectangle), or 'circle'
+        rect_bl_x: Rectangle bottom-left X (0.0 to 1.0, for 'rect' mode)
+        rect_bl_y: Rectangle bottom-left Y (0.0 to 1.0, for 'rect' mode)
+        rect_tr_x: Rectangle top-right X (0.0 to 1.0, for 'rect' mode)
+        rect_tr_y: Rectangle top-right Y (0.0 to 1.0, for 'rect' mode)
+        circle_x: Circle center X (0.0 to 1.0, for 'circle' mode)
+        circle_y: Circle center Y (0.0 to 1.0, for 'circle' mode)
+        circle_r: Circle radius (0.0 to 1.0, for 'circle' mode)
+        fade: Fade-out intensity for 'cut' mode (0.0 to 1.0). If set, creates gradient.
 
     Returns:
         Path to output file
@@ -172,107 +335,93 @@ def dither_image(
 
     width, height = img.size
 
+    # Create the base for grayscale conversion if needed
+    if grayscale_original:
+        grayscale_img = img.convert('L').convert('RGB')
+    else:
+        grayscale_img = img.copy()
+
+    # Convert entire image to grayscale for dithering
+    img_gray = img.convert('L')
+
     # Calculate scale factor based on total image width
     scale_factor = 1.0
     if reference_width > 0 and width > reference_width:
         scale_factor = width / reference_width
 
-    if cut_direction == 'vertical':
-        # Vertical cut: left part is original, right part is dithered
-        split_pos = int(width * split_ratio)
+    # Scale down if needed
+    original_size = (width, height)
+    if scale_factor > 1.0:
+        new_size = (int(width / scale_factor), int(height / scale_factor))
+        new_size = (max(1, new_size[0]), max(1, new_size[1]))
+        img_gray = img_gray.resize(new_size, Image.Resampling.LANCZOS)
 
-        # Split the image
-        original_part = img.crop((0, 0, split_pos, height))
-        dither_part = img.crop((split_pos, 0, width, height))
+    img_array = np.array(img_gray)
 
-        # Convert original part to grayscale if requested
-        if grayscale_original:
-            original_part = original_part.convert('L').convert('RGB')
+    # Create mask and density mask based on mode
+    dither_mask: Optional[npt.NDArray[np.bool_]] = None
+    density_mask: Optional[npt.NDArray[np.float64]] = None
 
-        # Convert dither part to grayscale
-        dither_gray = dither_part.convert('L')
+    if mode == 'cut':
+        # Create mask for cut mode
+        h, w = img_array.shape
+        dither_mask = np.zeros((h, w), dtype=bool)
 
-        # Scale down if needed
-        original_dither_size = dither_gray.size
-        if scale_factor > 1.0:
-            new_size = (int(original_dither_size[0] / scale_factor), int(original_dither_size[1] / scale_factor))
-            new_size = (max(1, new_size[0]), max(1, new_size[1]))
-            dither_gray = dither_gray.resize(new_size, Image.Resampling.LANCZOS)
+        if cut_direction == 'vertical':
+            split_pos = int(w * split_ratio)
+            dither_mask[:, split_pos:] = True
+        else:  # horizontal
+            split_pos = int(h * split_ratio)
+            dither_mask[split_pos:, :] = True
 
-        dither_array = np.array(dither_gray)
+        # Add gradient fade if specified
+        if fade is not None:
+            density_mask = create_gradient_mask(w, h, split_ratio, cut_direction, fade)
 
-        # Apply Floyd-Steinberg dithering
-        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset, seed)
+    elif mode == 'rect':
+        # Create rectangular mask
+        h, w = img_array.shape
+        dither_mask = create_rectangle_mask(w, h, rect_bl_x, rect_bl_y, rect_tr_x, rect_tr_y)
 
-        # Upscale if needed
-        if scale_factor > 1.0:
-            dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
-            dithered_img_temp = dithered_img_temp.resize(original_dither_size, Image.Resampling.NEAREST)
-            dithered_array = np.array(dithered_img_temp)
+    elif mode == 'circle':
+        # Create circular mask
+        h, w = img_array.shape
+        dither_mask = create_circle_mask(w, h, circle_x, circle_y, circle_r)
 
-        # Create RGB image with Austrian red
-        dithered_rgb = np.zeros((height, width - split_pos, 3), dtype=np.uint8)
-        for i in range(3):
-            dithered_rgb[:, :, i] = np.where(dithered_array == 0,
-                                              AUSTRIAN_RED[i],
-                                              255)
-
-        dithered_part_img = Image.fromarray(dithered_rgb)
-
-        # Combine parts
-        result = Image.new('RGB', (width, height))
-        result.paste(original_part, (0, 0))
-        result.paste(dithered_part_img, (split_pos, 0))
-
-    elif cut_direction == 'horizontal':
-        # Horizontal cut: top part is original, bottom part is dithered
-        split_pos = int(height * split_ratio)
-
-        # Split the image
-        original_part = img.crop((0, 0, width, split_pos))
-        dither_part = img.crop((0, split_pos, width, height))
-
-        # Convert original part to grayscale if requested
-        if grayscale_original:
-            original_part = original_part.convert('L').convert('RGB')
-
-        # Convert dither part to grayscale
-        dither_gray = dither_part.convert('L')
-
-        # Scale down if needed
-        original_dither_size = dither_gray.size
-        if scale_factor > 1.0:
-            new_size = (int(original_dither_size[0] / scale_factor), int(original_dither_size[1] / scale_factor))
-            new_size = (max(1, new_size[0]), max(1, new_size[1]))
-            dither_gray = dither_gray.resize(new_size, Image.Resampling.LANCZOS)
-
-        dither_array = np.array(dither_gray)
-
-        # Apply Floyd-Steinberg dithering
-        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset, seed)
-
-        # Upscale if needed
-        if scale_factor > 1.0:
-            dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
-            dithered_img_temp = dithered_img_temp.resize(original_dither_size, Image.Resampling.NEAREST)
-            dithered_array = np.array(dithered_img_temp)
-
-        # Create RGB image with Austrian red
-        dithered_rgb = np.zeros((height - split_pos, width, 3), dtype=np.uint8)
-        for i in range(3):
-            dithered_rgb[:, :, i] = np.where(dithered_array == 0,
-                                              AUSTRIAN_RED[i],
-                                              255)
-
-        dithered_part_img = Image.fromarray(dithered_rgb)
-
-        # Combine parts
-        result = Image.new('RGB', (width, height))
-        result.paste(original_part, (0, 0))
-        result.paste(dithered_part_img, (0, split_pos))
     else:
-        # This branch is technically unreachable due to click choice, but good for typing
-        raise ValueError(f"Invalid cut_direction: {cut_direction}. Must be 'vertical' or 'horizontal'.")
+        raise ValueError(f"Invalid mode: {mode}. Must be 'cut', 'rect', or 'circle'.")
+
+    # Apply Floyd-Steinberg dithering
+    dithered_array = floyd_steinberg_dither(
+        img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask
+    )
+
+    # Upscale if needed
+    if scale_factor > 1.0:
+        dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
+        dithered_img_temp = dithered_img_temp.resize(original_size, Image.Resampling.NEAREST)
+        dithered_array = np.array(dithered_img_temp)
+
+        # Also upscale the mask
+        if dither_mask is not None:
+            mask_img = Image.fromarray((dither_mask * 255).astype(np.uint8))
+            mask_img = mask_img.resize(original_size, Image.Resampling.NEAREST)
+            dither_mask = np.array(mask_img) > 128
+
+    # Create RGB image with Austrian red for dithered pixels
+    dithered_rgb = np.zeros((height, width, 3), dtype=np.uint8)
+    for i in range(3):
+        dithered_rgb[:, :, i] = np.where(dithered_array == 0, AUSTRIAN_RED[i], 255)
+
+    # Create result image by compositing
+    result_array = np.array(grayscale_img)
+
+    # Apply dithering only where mask is True
+    if dither_mask is not None:
+        for i in range(3):
+            result_array[:, :, i] = np.where(dither_mask, dithered_rgb[:, :, i], result_array[:, :, i])
+
+    result = Image.fromarray(result_array)
 
     # Determine final output path
     final_output_path: Path
@@ -358,6 +507,68 @@ def dither_image(
     default=None,
     help='Output file path. Defaults to automatic naming.'
 )
+@click.option(
+    '--mode',
+    type=click.Choice(['cut', 'rect', 'circle'], case_sensitive=False),
+    default='cut',
+    show_default=True,
+    help='Dithering mode: cut (default), rect (rectangle), or circle'
+)
+@click.option(
+    '--rect-bl-x',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.2,
+    show_default=True,
+    help='Rectangle mode: bottom-left X coordinate (0.0 to 1.0)'
+)
+@click.option(
+    '--rect-bl-y',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.2,
+    show_default=True,
+    help='Rectangle mode: bottom-left Y coordinate (0.0 to 1.0)'
+)
+@click.option(
+    '--rect-tr-x',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.8,
+    show_default=True,
+    help='Rectangle mode: top-right X coordinate (0.0 to 1.0)'
+)
+@click.option(
+    '--rect-tr-y',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.8,
+    show_default=True,
+    help='Rectangle mode: top-right Y coordinate (0.0 to 1.0)'
+)
+@click.option(
+    '--circle-x',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.5,
+    show_default=True,
+    help='Circle mode: center X coordinate (0.0 to 1.0)'
+)
+@click.option(
+    '--circle-y',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.5,
+    show_default=True,
+    help='Circle mode: center Y coordinate (0.0 to 1.0)'
+)
+@click.option(
+    '--circle-r',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.3,
+    show_default=True,
+    help='Circle mode: radius (0.0 to 1.0, fraction of image dimensions)'
+)
+@click.option(
+    '--fade',
+    type=click.FloatRange(0.0, 1.0),
+    default=None,
+    help='Cut mode: fade-out intensity (0.0 to 1.0). E.g., 0.1 = fade to 10%% density at edge'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -369,7 +580,16 @@ def main(
     reference_width: int,
     darkness: float,
     seed: Optional[int],
-    output: Optional[str]
+    output: Optional[str],
+    mode: Literal['cut', 'rect', 'circle'],
+    rect_bl_x: float,
+    rect_bl_y: float,
+    rect_tr_x: float,
+    rect_tr_y: float,
+    circle_x: float,
+    circle_y: float,
+    circle_r: float,
+    fade: Optional[float]
 ) -> None:
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
@@ -378,6 +598,11 @@ def main(
     By default, randomization is applied to the dithering threshold to create
     more organic, less regular patterns. Use --no-randomize for classic
     Floyd-Steinberg without randomization.
+
+    Supports three dithering modes:
+    - cut: Traditional cut mode (vertical or horizontal)
+    - rect: Rectangle mode (dither within a rectangular region)
+    - circle: Circle mode (dither within a circular region)
     """
     try:
         output_path = dither_image(
@@ -391,7 +616,16 @@ def main(
             reference_width=reference_width,
             darkness_offset=darkness,
             seed=seed,
-            output_path=output
+            output_path=output,
+            mode=mode,
+            rect_bl_x=rect_bl_x,
+            rect_bl_y=rect_bl_y,
+            rect_tr_x=rect_tr_x,
+            rect_tr_y=rect_tr_y,
+            circle_x=circle_x,
+            circle_y=circle_y,
+            circle_r=circle_r,
+            fade=fade
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:
