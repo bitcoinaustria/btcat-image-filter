@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv init:*)",
+      "Bash(chmod:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv sync:*)",
+      "Bash(ls:*)",
+      "Bash(./dither.sh:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
