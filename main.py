@@ -23,16 +23,25 @@ import click
 from pathlib import Path
 from PIL import Image
 import numpy as np
+import numpy.typing as npt
+from typing import Optional, Union, Tuple, Literal
 
 
 # Austrian flag red color
-AUSTRIAN_RED = (237, 41, 57)  # #ED2939
+AUSTRIAN_RED: Tuple[int, int, int] = (237, 41, 57)  # #ED2939
 
 # Golden ratio (phi)
-GOLDEN_RATIO = 1.618033988749895
+GOLDEN_RATIO: float = 1.618033988749895
 
 
-def floyd_steinberg_dither(image_array, threshold=128, randomize=True, jitter=15.0, threshold_offset=0.0):
+def floyd_steinberg_dither(
+    image_array: npt.NDArray[np.integer],
+    threshold: int = 128,
+    randomize: bool = True,
+    jitter: float = 15.0,
+    threshold_offset: float = 0.0,
+    seed: Optional[int] = None
+) -> npt.NDArray[np.uint8]:
     """
     Apply Floyd-Steinberg dithering algorithm with optional randomization.
 
@@ -45,6 +54,7 @@ def floyd_steinberg_dither(image_array, threshold=128, randomize=True, jitter=15
         randomize: Add random noise to threshold to reduce artifacts (default: True)
         jitter: Amount of random noise to add (±jitter). Default: 15.0
         threshold_offset: Bias added to threshold. Positive = darker (more red). Default: 0.0
+        seed: Random seed for reproducible results.
 
     Returns:
         Binary dithered array
@@ -54,10 +64,11 @@ def floyd_steinberg_dither(image_array, threshold=128, randomize=True, jitter=15
     height, width = img.shape
 
     # Initialize random number generator for reproducible randomness
-    rng = np.random.default_rng(seed=None)
+    rng = np.random.default_rng(seed=seed)
 
     # Generate random threshold adjustments if randomization is enabled
     # Small random values (±15) are added to threshold to break up patterns
+    random_noise: npt.NDArray[np.float64]
     if randomize:
         random_noise = rng.uniform(-jitter, jitter, size=(height, width))
     else:
@@ -86,7 +97,7 @@ def floyd_steinberg_dither(image_array, threshold=128, randomize=True, jitter=15
     return (img > threshold).astype(np.uint8) * 255
 
 
-def get_output_filename(input_path):
+def get_output_filename(input_path: Union[str, Path]) -> Path:
     """
     Generate output filename with -dither suffix, avoiding overwrites.
 
@@ -113,7 +124,19 @@ def get_output_filename(input_path):
     return output_path
 
 
-def dither_image(input_path, split_ratio=None, cut_direction='vertical', threshold=128, grayscale_original=False, randomize=True, jitter=15.0, reference_width=1024, darkness_offset=0.0, output_path=None):
+def dither_image(
+    input_path: Union[str, Path],
+    split_ratio: Optional[float] = None,
+    cut_direction: Literal['vertical', 'horizontal'] = 'vertical',
+    threshold: int = 128,
+    grayscale_original: bool = False,
+    randomize: bool = True,
+    jitter: float = 15.0,
+    reference_width: int = 1024,
+    darkness_offset: float = 0.0,
+    seed: Optional[int] = None,
+    output_path: Optional[Union[str, Path]] = None
+) -> Path:
     """
     Apply dithering to a portion of an image using Austrian flag red.
 
@@ -127,7 +150,8 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         jitter: Amount of random noise to add.
         reference_width: Target width for scaling point size.
         darkness_offset: Bias for darkness.
-        output_path: Optional path for the output file. If None, generated automatically.
+        seed: Random seed for reproducible results.
+        output_path: Optional path for output file. If None, generated from input filename.
 
     Returns:
         Path to output file
@@ -178,7 +202,7 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         dither_array = np.array(dither_gray)
 
         # Apply Floyd-Steinberg dithering
-        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset)
+        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset, seed)
 
         # Upscale if needed
         if scale_factor > 1.0:
@@ -225,7 +249,7 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         dither_array = np.array(dither_gray)
 
         # Apply Floyd-Steinberg dithering
-        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset)
+        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset, seed)
 
         # Upscale if needed
         if scale_factor > 1.0:
@@ -247,23 +271,25 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         result.paste(original_part, (0, 0))
         result.paste(dithered_part_img, (0, split_pos))
     else:
+        # This branch is technically unreachable due to click choice, but good for typing
         raise ValueError(f"Invalid cut_direction: {cut_direction}. Must be 'vertical' or 'horizontal'.")
 
-    # Generate output filename if not provided
+    # Determine final output path
+    final_output_path: Path
     if output_path is None:
-        output_path = get_output_filename(input_path)
+        final_output_path = get_output_filename(input_path)
     else:
-        output_path = Path(output_path)
+        final_output_path = Path(output_path)
 
     # Save with appropriate format
-    if output_path.suffix.lower() in ['.jpg', '.jpeg']:
-        result.save(output_path, 'JPEG', quality=95)
-    elif output_path.suffix.lower() == '.png':
-        result.save(output_path, 'PNG')
+    if final_output_path.suffix.lower() in ['.jpg', '.jpeg']:
+        result.save(final_output_path, 'JPEG', quality=95)
+    elif final_output_path.suffix.lower() == '.png':
+        result.save(final_output_path, 'PNG')
     else:
-        result.save(output_path)
+        result.save(final_output_path)
 
-    return output_path
+    return final_output_path
 
 
 @click.command()
@@ -320,11 +346,31 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
     help='Adjust darkness (draws less background pixels). Positive values make it darker.'
 )
 @click.option(
+    '--seed',
+    type=int,
+    default=None,
+    help='Random seed for reproducible results.',
+    hidden=False
+)
+@click.option(
     '--output', '-o',
     type=click.Path(dir_okay=False, writable=True),
-    help='Output filename. If not specified, defaults to input filename with -dither suffix.'
+    default=None,
+    help='Output file path. Defaults to automatic naming.'
 )
-def main(image, cut, pos, threshold, grayscale, no_randomize, jitter, reference_width, darkness, output):
+def main(
+    image: str,
+    cut: Literal['vertical', 'horizontal'],
+    pos: Optional[float],
+    threshold: int,
+    grayscale: bool,
+    no_randomize: bool,
+    jitter: float,
+    reference_width: int,
+    darkness: float,
+    seed: Optional[int],
+    output: Optional[str]
+) -> None:
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
     IMAGE is the path to the input image file (PNG or JPG).
@@ -344,6 +390,7 @@ def main(image, cut, pos, threshold, grayscale, no_randomize, jitter, reference_
             jitter=jitter,
             reference_width=reference_width,
             darkness_offset=darkness,
+            seed=seed,
             output_path=output
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
