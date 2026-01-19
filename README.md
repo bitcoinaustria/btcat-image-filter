@@ -28,6 +28,16 @@ Image dithering tool that applies monochrome dithering to a portion of an image 
 
 The left ~38% is converted to grayscale, and the right ~62% is dithered in Austrian flag red (#ED2939).
 
+### Configuration Examples
+
+| Option | Description | Example Output |
+|--------|-------------|----------------|
+| **Default** | Standard settings | ![Default](example-default.jpg) |
+| **High Jitter** | `... --jitter 100` <br> Increases randomness/noise | ![Jitter](example-jitter.jpg) |
+| **Scaled Dots** | `... --reference-width 200` <br> Makes dots larger (proportional to width) | ![Scaled](example-scaled.jpg) |
+| **Darker** | `... --darkness 50` <br> Draws fewer background pixels (darker appearance) | ![Darker](example-dark.jpg) |
+
+
 ## Installation
 
 This project uses UV for dependency management. If you don't have UV installed:
@@ -89,17 +99,37 @@ uv sync
 ./dither.sh --threshold 100 image.jpg
 ```
 
-### Randomization
+### Randomization & Jitter
 
 ```bash
-# Randomization is enabled by default for more organic patterns
-./dither.sh image.jpg
+# Randomization is enabled by default. Control the amount with --jitter (default: 30.0)
+./dither.sh --jitter 50 image.jpg
 
-# Disable randomization for classic Floyd-Steinberg (more regular patterns)
+# Disable randomization for classic Floyd-Steinberg
 ./dither.sh --no-randomize image.jpg
 ```
 
-Randomization adds small random noise (±15) to the threshold on a per-pixel basis, breaking up regular patterns and creating more natural-looking dithered results while preventing visual artifacts.
+### Point Size Scaling
+
+Make the dither pattern proportional to the image width. This ensures images of different resolutions have similar visual texture density.
+
+```bash
+# Set a reference width (default: 1024).
+# If input is wider than this, dither points become larger.
+./dither.sh --reference-width 800 image.jpg
+```
+
+### Density / Darkness Control
+
+Adjust the density of the dithered output.
+
+```bash
+# Make the result darker (fewer white pixels)
+./dither.sh --darkness 30 image.jpg
+
+# Make the result lighter (more white pixels)
+./dither.sh --darkness -30 image.jpg
+```
 
 ### Advanced Examples
 
