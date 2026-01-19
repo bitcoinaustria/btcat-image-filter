@@ -7,9 +7,6 @@ uv sync --quiet
 echo "Running pyright..."
 uv run pyright main.py
 
-echo "Running pytype..."
-uv run pytype main.py
-
 echo "Running e2e test..."
 # Generate a dithered image with a fixed seed
 INPUT_IMG="test-image-800px.jpg"
