@@ -113,7 +113,7 @@ def get_output_filename(input_path):
     return output_path
 
 
-def dither_image(input_path, split_ratio=None, cut_direction='vertical', threshold=128, grayscale_original=False, randomize=True, jitter=15.0, reference_width=1024, darkness_offset=0.0):
+def dither_image(input_path, split_ratio=None, cut_direction='vertical', threshold=128, grayscale_original=False, randomize=True, jitter=15.0, reference_width=1024, darkness_offset=0.0, output_path=None):
     """
     Apply dithering to a portion of an image using Austrian flag red.
 
@@ -127,6 +127,7 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         jitter: Amount of random noise to add.
         reference_width: Target width for scaling point size.
         darkness_offset: Bias for darkness.
+        output_path: Optional path for the output file. If None, generated automatically.
 
     Returns:
         Path to output file
@@ -248,8 +249,11 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
     else:
         raise ValueError(f"Invalid cut_direction: {cut_direction}. Must be 'vertical' or 'horizontal'.")
 
-    # Generate output filename
-    output_path = get_output_filename(input_path)
+    # Generate output filename if not provided
+    if output_path is None:
+        output_path = get_output_filename(input_path)
+    else:
+        output_path = Path(output_path)
 
     # Save with appropriate format
     if output_path.suffix.lower() in ['.jpg', '.jpeg']:
@@ -315,7 +319,12 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
     show_default=True,
     help='Adjust darkness (draws less background pixels). Positive values make it darker.'
 )
-def main(image, cut, pos, threshold, grayscale, no_randomize, jitter, reference_width, darkness):
+@click.option(
+    '--output', '-o',
+    type=click.Path(dir_okay=False, writable=True),
+    help='Output filename. If not specified, defaults to input filename with -dither suffix.'
+)
+def main(image, cut, pos, threshold, grayscale, no_randomize, jitter, reference_width, darkness, output):
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
     IMAGE is the path to the input image file (PNG or JPG).
@@ -334,7 +343,8 @@ def main(image, cut, pos, threshold, grayscale, no_randomize, jitter, reference_
             randomize=not no_randomize,
             jitter=jitter,
             reference_width=reference_width,
-            darkness_offset=darkness
+            darkness_offset=darkness,
+            output_path=output
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:
