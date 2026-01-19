@@ -32,7 +32,7 @@ AUSTRIAN_RED = (237, 41, 57)  # #ED2939
 GOLDEN_RATIO = 1.618033988749895
 
 
-def floyd_steinberg_dither(image_array, threshold=128, randomize=True):
+def floyd_steinberg_dither(image_array, threshold=128, randomize=True, jitter=15.0, threshold_offset=0.0):
     """
     Apply Floyd-Steinberg dithering algorithm with optional randomization.
 
@@ -43,6 +43,8 @@ def floyd_steinberg_dither(image_array, threshold=128, randomize=True):
         image_array: Grayscale numpy array
         threshold: Base threshold for binary conversion (0-255)
         randomize: Add random noise to threshold to reduce artifacts (default: True)
+        jitter: Amount of random noise to add (±jitter). Default: 15.0
+        threshold_offset: Bias added to threshold. Positive = darker (more red). Default: 0.0
 
     Returns:
         Binary dithered array
@@ -57,7 +59,7 @@ def floyd_steinberg_dither(image_array, threshold=128, randomize=True):
     # Generate random threshold adjustments if randomization is enabled
     # Small random values (±15) are added to threshold to break up patterns
     if randomize:
-        random_noise = rng.uniform(-15, 15, size=(height, width))
+        random_noise = rng.uniform(-jitter, jitter, size=(height, width))
     else:
         random_noise = np.zeros((height, width))
 
@@ -65,7 +67,7 @@ def floyd_steinberg_dither(image_array, threshold=128, randomize=True):
         for x in range(width):
             old_pixel = img[y, x]
             # Apply randomized threshold to reduce regular patterns
-            adjusted_threshold = threshold + random_noise[y, x]
+            adjusted_threshold = threshold + random_noise[y, x] + threshold_offset
             new_pixel = 255 if old_pixel > adjusted_threshold else 0
             img[y, x] = new_pixel
 
@@ -111,7 +113,7 @@ def get_output_filename(input_path):
     return output_path
 
 
-def dither_image(input_path, split_ratio=None, cut_direction='vertical', threshold=128, grayscale_original=False, randomize=True):
+def dither_image(input_path, split_ratio=None, cut_direction='vertical', threshold=128, grayscale_original=False, randomize=True, jitter=15.0, reference_width=1024, darkness_offset=0.0):
     """
     Apply dithering to a portion of an image using Austrian flag red.
 
@@ -122,6 +124,9 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         threshold: Threshold for dithering (0-255, default: 128)
         grayscale_original: Convert the original (non-dithered) part to grayscale (default: False)
         randomize: Add random noise to threshold to reduce regular patterns (default: True)
+        jitter: Amount of random noise to add.
+        reference_width: Target width for scaling point size.
+        darkness_offset: Bias for darkness.
 
     Returns:
         Path to output file
@@ -142,6 +147,11 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
 
     width, height = img.size
 
+    # Calculate scale factor based on total image width
+    scale_factor = 1.0
+    if reference_width > 0 and width > reference_width:
+        scale_factor = width / reference_width
+
     if cut_direction == 'vertical':
         # Vertical cut: left part is original, right part is dithered
         split_pos = int(width * split_ratio)
@@ -156,10 +166,24 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
 
         # Convert dither part to grayscale
         dither_gray = dither_part.convert('L')
+
+        # Scale down if needed
+        original_dither_size = dither_gray.size
+        if scale_factor > 1.0:
+            new_size = (int(original_dither_size[0] / scale_factor), int(original_dither_size[1] / scale_factor))
+            new_size = (max(1, new_size[0]), max(1, new_size[1]))
+            dither_gray = dither_gray.resize(new_size, Image.Resampling.LANCZOS)
+
         dither_array = np.array(dither_gray)
 
         # Apply Floyd-Steinberg dithering
-        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize)
+        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset)
+
+        # Upscale if needed
+        if scale_factor > 1.0:
+            dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
+            dithered_img_temp = dithered_img_temp.resize(original_dither_size, Image.Resampling.NEAREST)
+            dithered_array = np.array(dithered_img_temp)
 
         # Create RGB image with Austrian red
         dithered_rgb = np.zeros((height, width - split_pos, 3), dtype=np.uint8)
@@ -189,10 +213,24 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
 
         # Convert dither part to grayscale
         dither_gray = dither_part.convert('L')
+
+        # Scale down if needed
+        original_dither_size = dither_gray.size
+        if scale_factor > 1.0:
+            new_size = (int(original_dither_size[0] / scale_factor), int(original_dither_size[1] / scale_factor))
+            new_size = (max(1, new_size[0]), max(1, new_size[1]))
+            dither_gray = dither_gray.resize(new_size, Image.Resampling.LANCZOS)
+
         dither_array = np.array(dither_gray)
 
         # Apply Floyd-Steinberg dithering
-        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize)
+        dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize, jitter, darkness_offset)
+
+        # Upscale if needed
+        if scale_factor > 1.0:
+            dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
+            dithered_img_temp = dithered_img_temp.resize(original_dither_size, Image.Resampling.NEAREST)
+            dithered_array = np.array(dithered_img_temp)
 
         # Create RGB image with Austrian red
         dithered_rgb = np.zeros((height - split_pos, width, 3), dtype=np.uint8)
@@ -256,7 +294,28 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
     is_flag=True,
     help='Disable threshold randomization (produces more regular patterns)'
 )
-def main(image, cut, pos, threshold, grayscale, no_randomize):
+@click.option(
+    '--jitter',
+    type=click.FloatRange(0.0, 255.0),
+    default=30.0,
+    show_default=True,
+    help='Amount of random noise to add to threshold.'
+)
+@click.option(
+    '--reference-width',
+    type=int,
+    default=1024,
+    show_default=True,
+    help='Reference width for point size scaling. Dithering point size will be proportional to image width relative to this.'
+)
+@click.option(
+    '--darkness',
+    type=float,
+    default=0.0,
+    show_default=True,
+    help='Adjust darkness (draws less background pixels). Positive values make it darker.'
+)
+def main(image, cut, pos, threshold, grayscale, no_randomize, jitter, reference_width, darkness):
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
     IMAGE is the path to the input image file (PNG or JPG).
@@ -272,7 +331,10 @@ def main(image, cut, pos, threshold, grayscale, no_randomize):
             cut_direction=cut,
             threshold=threshold,
             grayscale_original=grayscale,
-            randomize=not no_randomize
+            randomize=not no_randomize,
+            jitter=jitter,
+            reference_width=reference_width,
+            darkness_offset=darkness
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:
