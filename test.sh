@@ -24,11 +24,13 @@ rm -f "$OUTPUT_IMG"
 # - Circle in center: --circle=0.5,0.5,0.3
 # - Fade effect at 50% density: --fade=0.5
 # - Grayscale entire image: --grayscale
+# - Dark background: --background=dark
 uv run python main.py "$INPUT_IMG" \
     --rect=0.5,0,1,1 \
     --circle=0.5,0.5,0.3 \
     --fade=0.5 \
     --grayscale \
+    --background=dark \
     --seed "$SEED" \
     --output "$OUTPUT_IMG"
 

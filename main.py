@@ -27,8 +27,11 @@ import numpy.typing as npt
 from typing import Optional, Union, Tuple, Literal
 
 
-# Austrian flag red color
-AUSTRIAN_RED: Tuple[int, int, int] = (237, 41, 57)  # #ED2939
+# Austrian flag red color (Bitcoin Austria brand identity)
+AUSTRIAN_RED: Tuple[int, int, int] = (227, 0, 15)  # #E3000F
+
+# Dark background color for dithered areas
+DARK_BACKGROUND: Tuple[int, int, int] = (34, 34, 34)  # #222222
 
 # Golden ratio (phi)
 GOLDEN_RATIO: float = 1.618033988749895
@@ -222,9 +225,11 @@ def floyd_steinberg_dither(
             should_dither = True
             if density_mask is not None and density_random is not None:
                 if density_random[y, x] > density_mask[y, x]:
-                    # Skip this pixel, force to white
+                    # Skip this pixel, force to white, don't propagate error
                     should_dither = False
                     new_pixel = 255.0
+                    img[y, x] = new_pixel
+                    continue  # Skip error diffusion for this pixel
                 else:
                     new_pixel = 255 if old_pixel > adjusted_threshold else 0
             else:
@@ -288,7 +293,8 @@ def dither_image(
     output_path: Optional[Union[str, Path]] = None,
     rectangles: Optional[list[tuple[float, float, float, float]]] = None,
     circles: Optional[list[tuple[float, float, float]]] = None,
-    fade: Optional[float] = None
+    fade: Optional[float] = None,
+    background: Literal['white', 'dark'] = 'white'
 ) -> Path:
     """
     Apply dithering to a portion of an image using Austrian flag red.
@@ -309,6 +315,7 @@ def dither_image(
         circles: List of circles [(cx, cy, r), ...]. Coordinates can be any float value.
         fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
               1.0 = full density, 0.1 = only 10% of pixels dithered.
+        background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
 
     Returns:
         Path to output file
@@ -407,9 +414,11 @@ def dither_image(
             dither_mask = np.array(mask_img) > 128
 
     # Create RGB image with Austrian red for dithered pixels
+    # Background color depends on mode: white or dark
+    bg_color = DARK_BACKGROUND if background == 'dark' else (255, 255, 255)
     dithered_rgb = np.zeros((height, width, 3), dtype=np.uint8)
     for i in range(3):
-        dithered_rgb[:, :, i] = np.where(dithered_array == 0, AUSTRIAN_RED[i], 255)
+        dithered_rgb[:, :, i] = np.where(dithered_array == 0, AUSTRIAN_RED[i], bg_color[i])
 
     # Create result image by compositing
     result_array = np.array(base_img)
@@ -464,7 +473,7 @@ def dither_image(
 @click.option(
     '--grayscale',
     is_flag=True,
-    help='Convert the original (non-dithered) part to grayscale'
+    help='Convert entire image to grayscale before applying dithering'
 )
 @click.option(
     '--no-randomize',
@@ -521,6 +530,13 @@ def dither_image(
     default=None,
     help='Dithering density (0.0 to 1.0). E.g., 0.1 = only 10%% of pixels dithered (sparse effect). Applies to all dithered areas.'
 )
+@click.option(
+    '--background',
+    type=click.Choice(['white', 'dark'], case_sensitive=False),
+    default='white',
+    show_default=True,
+    help='Background color for dithered areas. "white" for white background, "dark" for dark gray (#222222).'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -535,7 +551,8 @@ def main(
     output: Optional[str],
     rect: tuple[str, ...],
     circle: tuple[str, ...],
-    fade: Optional[float]
+    fade: Optional[float],
+    background: Literal['white', 'dark']
 ) -> None:
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
@@ -605,7 +622,8 @@ def main(
             output_path=output,
             rectangles=rectangles,
             circles=circles,
-            fade=fade
+            fade=fade,
+            background=background
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:

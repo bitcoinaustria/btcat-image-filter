@@ -7,7 +7,12 @@
       "Bash(uv sync:*)",
       "Bash(ls:*)",
       "Bash(./dither.sh:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebSearch",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(./test.sh:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
