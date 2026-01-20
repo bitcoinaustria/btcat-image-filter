@@ -50,6 +50,16 @@ Creates two vertical strips on the edges plus a circle in the center, all on a g
 
 Dithers the right 50% of the image with only 10% pixel density, creating a sparse, subtle effect.
 
+### Example 4: High Jitter for Organic Texture
+
+```bash
+./dither.sh --circle=0.5,0.5,0.35 --jitter=100 --grayscale test-image-800px.jpg
+```
+
+![Jitter Example](example-jitter-high.jpg)
+
+High jitter (100) creates more randomness and organic texture. The default jitter is 30, and `--no-randomize` disables it completely for classic Floyd-Steinberg dithering.
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |
