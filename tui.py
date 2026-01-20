@@ -7,23 +7,84 @@ from PIL import Image
 import numpy as np
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
-from textual.widgets import Button, Header, Footer, Label, Switch, Select, Input, Static
+from textual.widgets import Button, Header, Footer, Label, Switch, Select, Input, Static, ListItem, ListView
 from textual.binding import Binding
+from textual.screen import Screen
 from rich.text import Text
 from rich.style import Style
 from typing import cast, Literal, Optional, Tuple
 
 # Import core logic from main
 try:
-    from main import apply_dither, GOLDEN_RATIO
+    from main import apply_dither, GOLDEN_RATIO, BRANDS, DitherPattern
 except ImportError:
     # If running from different directory, might need adjustment
     sys.path.append(str(Path(__file__).parent))
-    from main import apply_dither, GOLDEN_RATIO
+    from main import apply_dither, GOLDEN_RATIO, BRANDS
+    # DitherPattern might not be exported if it's just a type alias in main,
+    # but we can redefine or use string.
+    DitherPattern = Literal['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal']
 
-class DitherApp(App):
+class FileSelectionScreen(Screen):
     CSS = """
-    Screen {
+    FileSelectionScreen {
+        layout: vertical;
+        align: center middle;
+    }
+    #file-list-container {
+        width: 80%;
+        height: 80%;
+        border: solid $accent;
+        background: $surface;
+    }
+    .header-label {
+        text-align: center;
+        padding: 1;
+        background: $primary;
+        color: $text;
+        text-style: bold;
+    }
+    ListView {
+        height: 1fr;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="file-list-container"):
+            yield Label("Select an image file (jpg, jpeg, png, webp)", classes="header-label")
+            yield ListView(id="file-list")
+        yield Label("Tip: You can also run with 'uv run python tui.py <image>'", classes="header-label")
+        yield Footer()
+
+    def on_mount(self):
+        extensions = {'.jpg', '.jpeg', '.png', '.webp'}
+        files = sorted([
+            f for f in Path('.').iterdir()
+            if f.is_file() and f.suffix.lower() in extensions
+            and not f.name.endswith('-preview.png') # Exclude previews
+        ])
+
+        list_view = self.query_one("#file-list", ListView)
+        for f in files:
+            list_view.append(ListItem(Label(f.name)))
+
+        if not files:
+            list_view.append(ListItem(Label("No image files found in current directory")))
+
+    def on_list_view_selected(self, event: ListView.Selected):
+        label = event.item.query_one(Label)
+        filename = str(label.renderable)
+        if filename.startswith("No image files"):
+            return
+
+        file_path = Path(filename).resolve()
+        self.app.push_screen(DitheringScreen(file_path))
+
+
+class DitheringScreen(Screen):
+    CSS = """
+    DitheringScreen {
         layout: horizontal;
     }
     #sidebar {
@@ -68,17 +129,19 @@ class DitherApp(App):
     """
 
     BINDINGS = [
-        Binding("q", "quit", "Quit"),
+        Binding("q", "quit_app", "Quit"),
+        Binding("escape", "back", "Back/Quit"),
         Binding("o", "open_viewer", "Open Viewer"),
         Binding("s", "save_output", "Save"),
     ]
 
-    def __init__(self, image_path: str):
+    def __init__(self, image_path: Path):
         super().__init__()
-        self.image_path = Path(image_path)
+        self.image_path = image_path
         if not self.image_path.exists():
-            print(f"Error: File {image_path} not found.")
-            sys.exit(1)
+            # Should not happen if coming from FileSelection, but safety check
+            self.notify(f"Error: File {image_path} not found.", severity="error")
+            self.app.pop_screen()
 
         self.original_image = Image.open(self.image_path)
         if self.original_image.mode != 'RGB':
@@ -96,6 +159,12 @@ class DitherApp(App):
         with VerticalScroll(id="sidebar"):
             yield Label("Dithering Controls", classes="header-label")
 
+            yield Label("Pattern")
+            yield Select.from_values(['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal'], value="floyd-steinberg", id="pattern")
+
+            yield Label("Brand")
+            yield Select.from_values(list(BRANDS.keys()), value="btcat", id="brand")
+
             yield Label("Cut Direction")
             yield Select.from_values(["vertical", "horizontal"], value="vertical", id="cut_direction")
 
@@ -107,6 +176,9 @@ class DitherApp(App):
 
             yield Label("Jitter (0 - 100)")
             yield Input(value="30.0", id="jitter")
+
+            yield Label("Glitch (0.0 - 1.0)")
+            yield Input(value="0.0", id="glitch")
 
             yield Label("Reference Width (Scaling)")
             yield Input(value="1024", id="reference_width")
@@ -125,6 +197,9 @@ class DitherApp(App):
 
             yield Label("Randomize Threshold")
             yield Switch(value=True, id="randomize")
+
+            yield Label("Seed (Optional Integer)")
+            yield Input(value="", placeholder="Random", id="seed")
 
             yield Label("Satoshi Mode")
             yield Switch(value=False, id="satoshi_mode")
@@ -157,6 +232,17 @@ class DitherApp(App):
         elif event.button.id == "btn-save":
             self.action_save_output()
 
+    def action_quit_app(self):
+        self.app.exit()
+
+    def action_back(self):
+        # If we pushed this screen, popping it goes back.
+        # But if it was the first screen, we should exit.
+        if len(self.app.screen_stack) > 1:
+            self.app.pop_screen()
+        else:
+            self.app.exit()
+
     def update_preview_debounced(self):
         if self.update_timer:
             self.update_timer.stop()
@@ -165,6 +251,12 @@ class DitherApp(App):
     def update_preview(self):
         # Gather parameters
         try:
+            pattern_val = self.query_one("#pattern", Select).value
+            pattern = cast(DitherPattern, str(pattern_val) if pattern_val != Select.BLANK else "floyd-steinberg")
+
+            brand_val = self.query_one("#brand", Select).value
+            brand = str(brand_val) if brand_val != Select.BLANK else "btcat"
+
             cut_val = self.query_one("#cut_direction", Select).value
             # Handle empty selection (Textual Select can be None/BLANK)
             cut_str = str(cut_val) if cut_val != Select.BLANK else "vertical"
@@ -184,6 +276,11 @@ class DitherApp(App):
                 jitter = float(self.query_one("#jitter", Input).value)
             except ValueError:
                 jitter = 30.0
+
+            try:
+                glitch = float(self.query_one("#glitch", Input).value)
+            except ValueError:
+                glitch = 0.0
 
             try:
                 ref_width = int(self.query_one("#reference_width", Input).value)
@@ -209,6 +306,9 @@ class DitherApp(App):
             randomize = self.query_one("#randomize", Switch).value
             satoshi = self.query_one("#satoshi_mode", Switch).value
 
+            seed_str = self.query_one("#seed", Input).value
+            seed = int(seed_str) if seed_str.strip() else None
+
             # Run dithering
             result_img = apply_dither(
                 self.original_image,
@@ -222,7 +322,11 @@ class DitherApp(App):
                 darkness_offset=darkness,
                 fade=fade,
                 background=bg,
-                satoshi_mode=satoshi
+                satoshi_mode=satoshi,
+                pattern=pattern,
+                brand=brand,
+                glitch=glitch,
+                seed=seed
             )
 
             # Save preview to file
@@ -275,9 +379,6 @@ class DitherApp(App):
 
         for y in range(0, new_h, 2):
             for x in range(new_w):
-                # Ensure x is within bounds (resize might be slightly off due to float math?)
-                # Actually resize result is exact.
-
                 try:
                     r1, g1, b1 = cast(Tuple[int, int, int], pixels[x, y])
                 except Exception:
@@ -322,12 +423,32 @@ class DitherApp(App):
         final_path = get_output_filename(self.image_path)
         shutil.copy(self.preview_path, final_path)
         print(f"Saved to {final_path}")
-        self.exit()
+        self.app.exit()
+
+class DitherApp(App):
+    CSS = """
+    Screen {
+        layout: horizontal;
+    }
+    """
+
+    def __init__(self, initial_image: Optional[str] = None):
+        super().__init__()
+        self.initial_image = initial_image
+
+    def on_mount(self):
+        if self.initial_image:
+             self.push_screen(DitheringScreen(Path(self.initial_image)))
+        else:
+             self.push_screen(FileSelectionScreen())
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python tui.py <image_path>")
-        sys.exit(1)
+    image_arg = sys.argv[1] if len(sys.argv) > 1 else None
 
-    app = DitherApp(sys.argv[1])
+    # Requirement: clearly mention to start it with uv run python
+    if image_arg is None:
+        print("Note: Run with 'uv run python tui.py [image_path]'")
+        print("Starting file selection...")
+
+    app = DitherApp(image_arg)
     app.run()
