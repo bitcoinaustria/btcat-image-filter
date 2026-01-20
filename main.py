@@ -27,14 +27,60 @@ import numpy.typing as npt
 from typing import Optional, Union, Tuple, Literal
 
 
-# Austrian flag red color (Bitcoin Austria brand identity)
-AUSTRIAN_RED: Tuple[int, int, int] = (227, 0, 15)  # #E3000F
+# Brand definitions
+BRANDS = {
+    'btcat': {'color': (227, 0, 15), 'type': 'monochrome'},       # #E3000F
+    'lightning': {'color': (245, 155, 31), 'type': 'monochrome'}, # #F59B1F
+    'cypherpunk': {'color': (0, 255, 65), 'type': 'monochrome'},  # #00FF41
+    'rgb': {'type': 'rgb'}
+}
 
 # Dark background color for dithered areas
 DARK_BACKGROUND: Tuple[int, int, int] = (34, 34, 34)  # #222222
 
 # Golden ratio (phi)
 GOLDEN_RATIO: float = 1.618033988749895
+
+# Dithering patterns
+DitherPattern = Literal['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal']
+
+# Matrices
+# Bayer 8x8 matrix
+BAYER_8x8 = np.array([
+    [ 0, 48, 12, 60,  3, 51, 15, 63],
+    [32, 16, 44, 28, 35, 19, 47, 31],
+    [ 8, 56,  4, 52, 11, 59,  7, 55],
+    [40, 24, 36, 20, 43, 27, 39, 23],
+    [ 2, 50, 14, 62,  1, 49, 13, 61],
+    [34, 18, 46, 30, 33, 17, 45, 29],
+    [10, 58,  6, 54,  9, 57,  5, 53],
+    [42, 26, 38, 22, 41, 25, 37, 21]
+], dtype=float) / 64.0
+
+# Clustered dot (Spiral 8x8)
+CLUSTERED_8x8 = np.array([
+    [24, 10, 12, 26, 35, 47, 49, 37],
+    [ 8,  0,  2, 14, 45, 59, 61, 51],
+    [22,  6,  4, 16, 43, 57, 63, 53],
+    [30, 20, 18, 28, 33, 41, 55, 39],
+    [36, 50, 48, 34, 27, 13, 11, 25],
+    [52, 62, 60, 46, 15,  3,  1,  9],
+    [54, 64, 58, 44, 17,  5,  7, 23],
+    [40, 56, 42, 32, 29, 19, 21, 31]
+], dtype=float) / 65.0
+
+# Bitcoin custom pattern (8x8)
+# Creates a subtle grid of "B" like shapes or block chain links
+BITCOIN_8x8 = np.array([
+    [60, 60, 60, 60, 60, 20, 20, 20],
+    [60, 10, 10, 10, 50, 20, 50, 20],
+    [60, 10, 60, 60, 60, 20, 50, 20],
+    [60, 10, 10, 10, 50, 20, 20, 20],
+    [60, 10, 60, 60, 60, 20, 50, 20],
+    [60, 10, 10, 10, 50, 20, 50, 20],
+    [60, 60, 60, 60, 60, 20, 20, 20],
+    [20, 20, 20, 20, 20, 20, 20, 20],
+], dtype=float) / 64.0
 
 
 def create_rectangle_mask(
@@ -200,6 +246,167 @@ def glitch_swap_rows(
     return result
 
 
+def ordered_dither(
+    image_array: npt.NDArray[np.integer],
+    threshold: int,
+    matrix: npt.NDArray[np.float64],
+    threshold_offset: float = 0.0,
+    density_mask: Optional[npt.NDArray[np.float64]] = None,
+    seed: Optional[int] = None  # Unused but kept for interface consistency
+) -> npt.NDArray[np.uint8]:
+    """
+    Apply ordered dithering using a threshold matrix.
+    """
+    height, width = image_array.shape
+    mh, mw = matrix.shape
+
+    # Tile the matrix to cover the image
+    tiled_matrix = np.tile(matrix, (height // mh + 1, width // mw + 1))
+    tiled_matrix = tiled_matrix[:height, :width]
+
+    # Calculate effective threshold for each pixel
+    # Map matrix (0-1) to (0-255) and shift by user threshold
+    # Base threshold 128 -> center.
+    # We want: pixel > matrix_val * 255 + (threshold - 128)
+
+    threshold_shift = threshold - 128.0 + threshold_offset
+    effective_thresholds = (tiled_matrix * 255.0) + threshold_shift
+
+    # Determine which pixels are white (255)
+    result = np.zeros_like(image_array, dtype=np.uint8)
+    white_pixels = image_array > effective_thresholds
+
+    if density_mask is not None:
+        # For ordered dither, density mask is harder to apply probabilistically per pixel
+        # without breaking the pattern.
+        # We can use a random check against density mask
+        rng = np.random.default_rng(seed=seed)
+        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+        # If density check fails, force white (skip dithering/red)
+        skip_mask = density_random > density_mask
+        white_pixels = white_pixels | skip_mask
+
+    result[white_pixels] = 255
+    return result
+
+
+def atkinson_dither(
+    image_array: npt.NDArray[np.integer],
+    threshold: int = 128,
+    randomize: bool = True,
+    jitter: float = 15.0,
+    threshold_offset: float = 0.0,
+    seed: Optional[int] = None,
+    density_mask: Optional[npt.NDArray[np.float64]] = None,
+    satoshi_mode: bool = False
+) -> npt.NDArray[np.uint8]:
+    """
+    Apply Atkinson dithering algorithm.
+    Propagates error to 6 neighbors with 1/8 weight.
+    """
+    img = image_array.astype(float)
+    height, width = img.shape
+    rng = np.random.default_rng(seed=seed)
+
+    random_noise: npt.NDArray[np.float64]
+    if randomize:
+        random_noise = rng.uniform(-jitter, jitter, size=(height, width))
+    else:
+        random_noise = np.zeros((height, width))
+
+    density_random: Optional[npt.NDArray[np.float64]] = None
+    if density_mask is not None:
+        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+
+    for y in range(height):
+        for x in range(width):
+            old_pixel = img[y, x]
+            adjusted_threshold = threshold + random_noise[y, x] + threshold_offset
+
+            if density_mask is not None and density_random is not None:
+                if density_random[y, x] > density_mask[y, x]:
+                    img[y, x] = 255.0
+                    continue
+                else:
+                    new_pixel = 255 if old_pixel > adjusted_threshold else 0
+            else:
+                new_pixel = 255 if old_pixel > adjusted_threshold else 0
+
+            img[y, x] = new_pixel
+            error = old_pixel - new_pixel
+
+            # Atkinson distribution (1/8 to neighbors)
+            #       X   1   1
+            #   1   1   1
+            #       1
+            fraction = 1.0 / 8.0
+
+            # (x+1, y)
+            if x + 1 < width:
+                img[y, x + 1] += error * fraction
+            # (x+2, y)
+            if x + 2 < width:
+                img[y, x + 2] += error * fraction
+            # (x-1, y+1)
+            if y + 1 < height and x > 0:
+                img[y + 1, x - 1] += error * fraction
+            # (x, y+1)
+            if y + 1 < height:
+                img[y + 1, x] += error * fraction
+            # (x+1, y+1)
+            if y + 1 < height and x + 1 < width:
+                img[y + 1, x + 1] += error * fraction
+            # (x, y+2)
+            if y + 2 < height:
+                img[y + 2, x] += error * fraction
+
+    return (img > 128).astype(np.uint8) * 255
+
+
+def hal_dither(
+    image_array: npt.NDArray[np.integer],
+    threshold: int = 128,
+    threshold_offset: float = 0.0,
+    seed: Optional[int] = None,
+    density_mask: Optional[npt.NDArray[np.float64]] = None
+) -> npt.NDArray[np.uint8]:
+    """
+    Apply 'Hal' dithering (tribute to Hal Finney).
+    Simulates PGP-era terminal with scanline effects and subtle noise.
+    """
+    img = image_array.astype(float)
+    height, width = img.shape
+    rng = np.random.default_rng(seed=seed)
+
+    # Create scanline effect: modify threshold based on Y coordinate
+    # Alternating lines or every 4th line darker/lighter
+    y_coords, x_coords = np.indices((height, width))
+
+    # Scanline pattern: sine wave
+    scanline_pattern = np.sin(y_coords * 0.8) * 40.0
+
+    # Digital noise (subtle)
+    noise = rng.normal(0, 20.0, size=(height, width))
+
+    # Combine
+    adjusted_thresholds = threshold + scanline_pattern + noise + threshold_offset
+
+    # Determine pixels
+    result = np.zeros_like(image_array, dtype=np.uint8)
+
+    # Density mask check
+    should_dither = np.ones((height, width), dtype=bool)
+    if density_mask is not None:
+        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+        should_dither = density_random <= density_mask
+
+    white_pixels = (img > adjusted_thresholds) | (~should_dither)
+    result[white_pixels] = 255
+>>>>>>> origin/main
+
+    return result
+
+
 def floyd_steinberg_dither(
     image_array: npt.NDArray[np.integer],
     threshold: int = 128,
@@ -266,11 +473,9 @@ def floyd_steinberg_dither(
             adjusted_threshold = base_threshold + random_noise[y, x] + threshold_offset
 
             # Check density mask - probabilistically skip pixels for fade effect
-            should_dither = True
             if density_mask is not None and density_random is not None:
                 if density_random[y, x] > density_mask[y, x]:
                     # Skip this pixel, force to white, don't propagate error
-                    should_dither = False
                     new_pixel = 255.0
                     img[y, x] = new_pixel
                     continue  # Skip error diffusion for this pixel
@@ -293,7 +498,7 @@ def floyd_steinberg_dither(
                 if x + 1 < width:
                     img[y + 1, x + 1] += error * 1 / 16
 
-    return (img > threshold).astype(np.uint8) * 255
+    return (img > 128).astype(np.uint8) * 255
 
 
 def get_output_filename(input_path: Union[str, Path]) -> Path:
@@ -323,8 +528,53 @@ def get_output_filename(input_path: Union[str, Path]) -> Path:
     return output_path
 
 
-def dither_image(
-    input_path: Union[str, Path],
+def apply_dithering_algorithm(
+    pattern: DitherPattern,
+    image_array: npt.NDArray[np.integer],
+    threshold: int,
+    randomize: bool,
+    jitter: float,
+    threshold_offset: float,
+    seed: Optional[int],
+    density_mask: Optional[npt.NDArray[np.float64]],
+    satoshi_mode: bool = False
+) -> npt.NDArray[np.uint8]:
+    """
+    Dispatch to appropriate dithering function.
+    """
+    if pattern == 'floyd-steinberg':
+        return floyd_steinberg_dither(
+            image_array, threshold, randomize, jitter, threshold_offset, seed, density_mask, satoshi_mode
+        )
+    elif pattern == 'atkinson':
+        return atkinson_dither(
+            image_array, threshold, randomize, jitter, threshold_offset, seed, density_mask
+        )
+    elif pattern == 'ordered':
+        return ordered_dither(
+            image_array, threshold, BAYER_8x8, threshold_offset, density_mask, seed
+        )
+    elif pattern == 'clustered-dot':
+        return ordered_dither(
+            image_array, threshold, CLUSTERED_8x8, threshold_offset, density_mask, seed
+        )
+    elif pattern == 'bitcoin':
+        return ordered_dither(
+            image_array, threshold, BITCOIN_8x8, threshold_offset, density_mask, seed
+        )
+    elif pattern == 'hal':
+        return hal_dither(
+            image_array, threshold, threshold_offset, seed, density_mask
+        )
+    else:
+        # Fallback to FS
+        return floyd_steinberg_dither(
+            image_array, threshold, randomize, jitter, threshold_offset, seed, density_mask, satoshi_mode
+        )
+
+
+def apply_dither(
+    img: Image.Image,
     split_ratio: Optional[float] = None,
     cut_direction: Literal['vertical', 'horizontal'] = 'vertical',
     threshold: int = 128,
@@ -334,49 +584,21 @@ def dither_image(
     reference_width: int = 1024,
     darkness_offset: float = 0.0,
     seed: Optional[int] = None,
-    output_path: Optional[Union[str, Path]] = None,
     rectangles: Optional[list[tuple[float, float, float, float]]] = None,
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
     background: Literal['white', 'dark'] = 'white',
+    pattern: DitherPattern = 'floyd-steinberg',
     satoshi_mode: bool = False,
+    brand: str = 'btcat',
     glitch: float = 0.0
-) -> Path:
+) -> Image.Image:
     """
-    Apply dithering to a portion of an image using Austrian flag red.
-
-    Args:
-        input_path: Path to input image file
-        split_ratio: Position for the cut (0.0 to 1.0, default: golden ratio ~0.382)
-        cut_direction: 'vertical' or 'horizontal' (default: 'vertical')
-        threshold: Threshold for dithering (0-255, default: 128)
-        grayscale_original: Convert the original (non-dithered) part to grayscale (default: False)
-        randomize: Add random noise to threshold to reduce regular patterns (default: True)
-        jitter: Amount of random noise to add.
-        reference_width: Target width for scaling point size.
-        darkness_offset: Bias for darkness.
-        seed: Random seed for reproducible results.
-        output_path: Optional path for output file. If None, generated from input filename.
-        rectangles: List of rectangles [(x1, y1, x2, y2), ...]. Coordinates can be any float value.
-        circles: List of circles [(cx, cy, r), ...]. Coordinates can be any float value.
-        fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
-              1.0 = full density, 0.1 = only 10% of pixels dithered.
-        background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
-        satoshi_mode: Enable dynamic threshold based on local brightness.
-        glitch: Glitch intensity (0.0 to 1.0). Enables row swapping, channel shifting, and repeated passes.
-
-    Returns:
-        Path to output file
+    Apply dithering to a PIL Image using brand colors and selected pattern.
     """
     if split_ratio is None:
         # Golden ratio split: original side is ~38%, dithered side is ~62%
         split_ratio = 1 / GOLDEN_RATIO
-
-    # Load image
-    try:
-        img = Image.open(input_path)
-    except Exception as e:
-        raise ValueError(f"Failed to open image: {e}")
 
     # Convert to RGB if needed
     if img.mode != 'RGB':
@@ -391,25 +613,43 @@ def dither_image(
     # Keep a copy of the base image for non-dithered areas
     base_img = img.copy()
 
-    # Convert to grayscale for dithering
-    img_gray = img.convert('L')
+    # Handle RGB brand vs Monochrome brands
+    brand_config = BRANDS.get(brand, BRANDS['btcat'])
+    is_rgb_mode = brand_config['type'] == 'rgb'
 
     # Calculate scale factor based on total image width
     scale_factor = 1.0
     if reference_width > 0 and width > reference_width:
         scale_factor = width / reference_width
 
-    # Scale down if needed
     original_size = (width, height)
-    if scale_factor > 1.0:
-        new_size = (int(width / scale_factor), int(height / scale_factor))
-        new_size = (max(1, new_size[0]), max(1, new_size[1]))
-        img_gray = img_gray.resize(new_size, Image.Resampling.LANCZOS)
 
-    img_array = np.array(img_gray)
+    # Prepare image for dithering (Grayscale or separate RGB channels)
+    if is_rgb_mode:
+        # Split into channels
+        channels = img.split() # R, G, B
+        channel_arrays = []
+        for channel in channels:
+            if scale_factor > 1.0:
+                new_size = (int(width / scale_factor), int(height / scale_factor))
+                new_size = (max(1, new_size[0]), max(1, new_size[1]))
+                channel = channel.resize(new_size, Image.Resampling.LANCZOS)
+            channel_arrays.append(np.array(channel))
 
-    # Create mask and density mask based on mode
-    h, w = img_array.shape
+        # Determine dimensions from first channel (all should be same)
+        h, w = channel_arrays[0].shape
+        # Initialize img_array to avoid unbound error (though unused in rgb mode)
+        img_array = np.zeros((h, w), dtype=np.uint8)
+    else:
+        # Convert to grayscale for dithering
+        img_gray = img.convert('L')
+        if scale_factor > 1.0:
+            new_size = (int(width / scale_factor), int(height / scale_factor))
+            new_size = (max(1, new_size[0]), max(1, new_size[1]))
+            img_gray = img_gray.resize(new_size, Image.Resampling.LANCZOS)
+
+        img_array = np.array(img_gray)
+        h, w = img_array.shape
 
     # If no shapes specified, create default rectangle for cut mode (backward compatibility)
     if not rectangles and not circles:
@@ -444,48 +684,85 @@ def dither_image(
         # Only apply where dither_mask is True
         density_mask = np.where(dither_mask, density_mask, 0.0)
 
-    # Glitch Mode: Repeated error diffusion passes
-    # If glitch is active, we repeat the dithering process
-    # Passes: 1 (normal) to 4 (high glitch)
-    passes = 1
-    if glitch > 0.0:
-        passes = 1 + int(glitch * 3)
+    # Apply dithering using selected pattern
+    # Glitch Mode: Repeated error diffusion passes with noise feedback
+    if is_rgb_mode:
+        # RGB mode: dither each channel separately
+        dithered_channels = []
+        for i, channel_array in enumerate(channel_arrays): # type: ignore
+            # Determine number of passes for glitch mode
+            passes = 1 + int(glitch * 3) if glitch > 0.0 else 1
 
-    current_img_array = img_array.copy().astype(np.int16)
+            if passes > 1:
+                # Multi-pass glitch mode
+                rng = np.random.default_rng(seed)
+                current_array = channel_array.copy().astype(np.int16)
+                d_array = np.zeros_like(channel_array, dtype=np.uint8)
 
-    # Initialize random number generator
-    rng = np.random.default_rng(seed)
+                for p in range(passes):
+                    input_for_pass = current_array.astype(int) if p == 0 else d_array.astype(int)
 
-    # Final dithered result
-    dithered_array = np.zeros((h, w), dtype=np.uint8)
+                    if p > 0:
+                        # Add noise to corrupt the feedback loop
+                        noise_amount = int(50 * glitch)
+                        if noise_amount > 0:
+                            noise = rng.integers(-noise_amount, noise_amount + 1, size=input_for_pass.shape)
+                            input_for_pass = np.clip(input_for_pass + noise, 0, 255)
 
-    for p in range(passes):
-        # Apply Floyd-Steinberg dithering
-        # For first pass, use original image
-        # For subsequent passes, use modified version of previous result
+                    pass_seed = seed + p if seed is not None else None
+                    d_array = apply_dithering_algorithm(
+                        pattern, input_for_pass, threshold, randomize, jitter, darkness_offset, pass_seed, density_mask, satoshi_mode
+                    )
+            else:
+                # Normal single-pass dithering
+                d_array = apply_dithering_algorithm(
+                    pattern, channel_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
+                )
 
-        # We need a proper input for the dither function (int array)
-        input_for_pass = current_img_array.astype(int) if p == 0 else dithered_array.astype(int)
+            dithered_channels.append(d_array)
 
-        if p > 0:
-            # Add noise to corrupt the feedback loop
-            noise_amount = int(50 * glitch)
-            if noise_amount > 0:
-                noise = rng.integers(-noise_amount, noise_amount + 1, size=(h, w))
-                input_for_pass = np.clip(input_for_pass + noise, 0, 255)
+        # Combine channels
+        dithered_array = np.dstack(dithered_channels) # (h, w, 3)
+    else:
+        # Monochrome mode: single channel dithering
+        passes = 1 + int(glitch * 3) if glitch > 0.0 else 1
 
-        # We need to vary the seed for each pass if randomizing, otherwise we get same patterns
-        pass_seed = seed + p if seed is not None else None
+        if passes > 1:
+            # Multi-pass glitch mode
+            rng = np.random.default_rng(seed)
+            current_img_array = img_array.copy().astype(np.int16)
+            dithered_array = np.zeros((h, w), dtype=np.uint8)
 
-        dithered_array = floyd_steinberg_dither(
-            input_for_pass, threshold, randomize, jitter, darkness_offset, pass_seed, density_mask, satoshi_mode
-        )
+            for p in range(passes):
+                input_for_pass = current_img_array.astype(int) if p == 0 else dithered_array.astype(int)
+
+                if p > 0:
+                    # Add noise to corrupt the feedback loop
+                    noise_amount = int(50 * glitch)
+                    if noise_amount > 0:
+                        noise = rng.integers(-noise_amount, noise_amount + 1, size=(h, w))
+                        input_for_pass = np.clip(input_for_pass + noise, 0, 255)
+
+                pass_seed = seed + p if seed is not None else None
+                dithered_array = apply_dithering_algorithm(
+                    pattern, input_for_pass, threshold, randomize, jitter, darkness_offset, pass_seed, density_mask, satoshi_mode
+                )
+        else:
+            # Normal single-pass dithering
+            dithered_array = apply_dithering_algorithm(
+                pattern, img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
+            )
 
     # Upscale if needed
     if scale_factor > 1.0:
-        dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
-        dithered_img_temp = dithered_img_temp.resize(original_size, Image.Resampling.NEAREST)
-        dithered_array = np.array(dithered_img_temp)
+        if is_rgb_mode:
+             dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
+             dithered_img_temp = dithered_img_temp.resize(original_size, Image.Resampling.NEAREST)
+             dithered_array = np.array(dithered_img_temp)
+        else:
+            dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
+            dithered_img_temp = dithered_img_temp.resize(original_size, Image.Resampling.NEAREST)
+            dithered_array = np.array(dithered_img_temp)
 
         # Also upscale the mask
         if dither_mask is not None:
@@ -499,26 +776,41 @@ def dither_image(
         glitch_seed = seed if seed is not None else np.random.randint(0, 10000)
         dithered_array = glitch_swap_rows(dithered_array, glitch, seed=glitch_seed)
 
-    # Create RGB image with Austrian red for dithered pixels
+    # Create RGB image with brand colors
     # Background color depends on mode: white or dark
     bg_color = DARK_BACKGROUND if background == 'dark' else (255, 255, 255)
     dithered_rgb = np.zeros((height, width, 3), dtype=np.uint8)
 
-    # Re-initialize RNG for channel shift
+    # Re-initialize RNG for channel shift (glitch mode)
     rng = np.random.default_rng(seed)
 
-    for i in range(3):
-        channel_data = np.where(dithered_array == 0, AUSTRIAN_RED[i], bg_color[i])
+    if is_rgb_mode:
+        # RGB mode: map 255 (background) to bg_color, and 0 (ink) to 0
+        for i in range(3):
+            channel_data = np.where(dithered_array[:, :, i] == 255, bg_color[i], 0)
 
-        # Glitch Mode: Channel Shifting
-        if glitch > 0.0:
-            # Shift amount proportional to width and glitch intensity
-            max_shift = int(width * glitch * 0.05)
-            if max_shift > 0:
-                shift = rng.integers(-max_shift, max_shift + 1)
-                channel_data = np.roll(channel_data, shift, axis=1)
+            # Glitch Mode: Channel Shifting (RGB mode)
+            if glitch > 0.0:
+                max_shift = int(width * glitch * 0.05)
+                if max_shift > 0:
+                    shift = rng.integers(-max_shift, max_shift + 1)
+                    channel_data = np.roll(channel_data, shift, axis=1)
 
-        dithered_rgb[:, :, i] = channel_data
+            dithered_rgb[:, :, i] = channel_data
+    else:
+        # Monochrome mode: use brand color
+        brand_color = brand_config.get('color', (0,0,0))
+        for i in range(3):
+            channel_data = np.where(dithered_array == 0, brand_color[i], bg_color[i])
+
+            # Glitch Mode: Channel Shifting (monochrome mode)
+            if glitch > 0.0:
+                max_shift = int(width * glitch * 0.05)
+                if max_shift > 0:
+                    shift = rng.integers(-max_shift, max_shift + 1)
+                    channel_data = np.roll(channel_data, shift, axis=1)
+
+            dithered_rgb[:, :, i] = channel_data
 
     # Create result image by compositing
     result_array = np.array(base_img)
@@ -529,6 +821,84 @@ def dither_image(
             result_array[:, :, i] = np.where(dither_mask, dithered_rgb[:, :, i], result_array[:, :, i])
 
     result = Image.fromarray(result_array)
+    return result
+
+
+def dither_image(
+    input_path: Union[str, Path],
+    split_ratio: Optional[float] = None,
+    cut_direction: Literal['vertical', 'horizontal'] = 'vertical',
+    threshold: int = 128,
+    grayscale_original: bool = False,
+    randomize: bool = True,
+    jitter: float = 15.0,
+    reference_width: int = 1024,
+    darkness_offset: float = 0.0,
+    seed: Optional[int] = None,
+    output_path: Optional[Union[str, Path]] = None,
+    rectangles: Optional[list[tuple[float, float, float, float]]] = None,
+    circles: Optional[list[tuple[float, float, float]]] = None,
+    fade: Optional[float] = None,
+    background: Literal['white', 'dark'] = 'white',
+    pattern: DitherPattern = 'floyd-steinberg',
+    satoshi_mode: bool = False,
+    brand: str = 'btcat',
+    glitch: float = 0.0
+) -> Path:
+    """
+    Apply dithering to a portion of an image using brand colors.
+
+    Args:
+        input_path: Path to input image file
+        split_ratio: Position for the cut (0.0 to 1.0, default: golden ratio ~0.382)
+        cut_direction: 'vertical' or 'horizontal' (default: 'vertical')
+        threshold: Threshold for dithering (0-255, default: 128)
+        grayscale_original: Convert the original (non-dithered) part to grayscale (default: False)
+        randomize: Add random noise to threshold to reduce regular patterns (default: True)
+        jitter: Amount of random noise to add.
+        reference_width: Target width for scaling point size.
+        darkness_offset: Bias for darkness.
+        seed: Random seed for reproducible results.
+        output_path: Optional path for output file. If None, generated from input filename.
+        rectangles: List of rectangles [(x1, y1, x2, y2), ...]. Coordinates can be any float value.
+        circles: List of circles [(cx, cy, r), ...]. Coordinates can be any float value.
+        fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
+              1.0 = full density, 0.1 = only 10% of pixels dithered.
+        background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
+        pattern: Dithering pattern to use.
+        satoshi_mode: Enable dynamic threshold based on local brightness.
+        brand: Brand palette to use ('btcat', 'lightning', 'cypherpunk', 'rgb').
+        glitch: Glitch intensity (0.0 to 1.0). Enables row swapping, channel shifting, and repeated passes.
+
+    Returns:
+        Path to output file
+    """
+    # Load image
+    try:
+        img = Image.open(input_path)
+    except Exception as e:
+        raise ValueError(f"Failed to open image: {e}")
+
+    result = apply_dither(
+        img,
+        split_ratio=split_ratio,
+        cut_direction=cut_direction,
+        threshold=threshold,
+        grayscale_original=grayscale_original,
+        randomize=randomize,
+        jitter=jitter,
+        reference_width=reference_width,
+        darkness_offset=darkness_offset,
+        seed=seed,
+        rectangles=rectangles,
+        circles=circles,
+        fade=fade,
+        background=background,
+        pattern=pattern,
+        satoshi_mode=satoshi_mode,
+        brand=brand,
+        glitch=glitch
+    )
 
     # Determine final output path
     final_output_path: Path
@@ -569,6 +939,13 @@ def dither_image(
     default=128,
     show_default=True,
     help='Threshold for dithering (0-255)'
+)
+@click.option(
+    '--pattern',
+    type=click.Choice(['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal'], case_sensitive=False),
+    default='floyd-steinberg',
+    show_default=True,
+    help='Dithering pattern to use.'
 )
 @click.option(
     '--grayscale',
@@ -643,6 +1020,13 @@ def dither_image(
     help='Enable Satoshi Mode: Dynamic threshold based on local brightness.'
 )
 @click.option(
+    '--brand',
+    type=click.Choice(list(BRANDS.keys()), case_sensitive=False),
+    default='btcat',
+    show_default=True,
+    help='Brand palette to use.'
+)
+@click.option(
     '--glitch',
     type=click.FloatRange(0.0, 1.0),
     default=0.0,
@@ -653,6 +1037,7 @@ def main(
     cut: Literal['vertical', 'horizontal'],
     pos: Optional[float],
     threshold: int,
+    pattern: DitherPattern,
     grayscale: bool,
     no_randomize: bool,
     jitter: float,
@@ -665,9 +1050,10 @@ def main(
     fade: Optional[float],
     background: Literal['white', 'dark'],
     satoshi_mode: bool,
+    brand: str,
     glitch: float
 ) -> None:
-    """Apply monochrome dithering to a portion of an image using Austrian flag red.
+    """Apply monochrome dithering to a portion of an image using brand colors.
 
     IMAGE is the path to the input image file (PNG or JPG).
 
@@ -689,6 +1075,7 @@ def main(
       Example: --rect=0,0,1,0.1 --circle=0.5,0.5,0.2
 
     Options apply globally:
+    - --pattern: Choose algorithm (floyd-steinberg, ordered, atkinson, clustered-dot, bitcoin, hal)
     - --grayscale: Converts entire image to grayscale before applying dithering
     - --fade: Controls dithering density (0.1 = sparse/10%, 1.0 = full density)
     - --satoshi-mode: Adapts threshold per pixel based on local brightness
@@ -739,7 +1126,9 @@ def main(
             circles=circles,
             fade=fade,
             background=background,
+            pattern=pattern,
             satoshi_mode=satoshi_mode,
+            brand=brand,
             glitch=glitch
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')

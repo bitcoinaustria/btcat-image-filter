@@ -1,6 +1,6 @@
-# btcat-img-dither
+# Bitcoin Austria Image Filter
 
-Image dithering tool that applies monochrome dithering to a portion of an image using Bitcoin Austria brand red (#E3000F).
+Image dithering/filter tool that applies effects to a portion of an image using Bitcoin Austria brand red (#E3000F) and other art styles.
 
 ## Features
 
@@ -179,6 +179,60 @@ Define circular regions for dithering. Coordinates are specified as `x,y,radius`
 # For horizontal: --pos=0.4 means top 40% original, bottom 60% dithered
 ./dither.sh --cut=horizontal --pos=0.4 image.jpg
 ```
+
+### Dithering Patterns
+
+Choose different dithering algorithms with `--pattern`.
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| **Floyd-Steinberg** | Default error diffusion (randomized) | ![Default](example-default.jpg) |
+| **Ordered** | Bayer 8x8 matrix (clean, grid-like) | ![Ordered](example-pattern-ordered.jpg) |
+| **Atkinson** | Softer error diffusion (vintage Mac feel) | ![Atkinson](example-pattern-atkinson.jpg) |
+| **Clustered-dot** | Newspaper-style clusters | ![Clustered](example-pattern-clustered.jpg) |
+| **Bitcoin** | Custom pattern inspired by Bitcoin grid | ![Bitcoin](example-pattern-bitcoin.jpg) |
+| **Hal** | Tribute to Hal Finney (PGP-era terminal style) | ![Hal](example-pattern-hal.jpg) |
+
+```bash
+# Ordered Bayer matrix
+./dither.sh --pattern=ordered image.jpg
+
+# Vintage Atkinson style
+./dither.sh --pattern=atkinson image.jpg
+
+# Hal Finney tribute (scanlines + noise)
+./dither.sh --pattern=hal --grayscale image.jpg
+```
+
+### Branding
+
+Choose different color palettes with `--brand` to match your project's identity.
+
+| Brand | Type | Color | Description | Example |
+|-------|------|-------|-------------|---------|
+| **btcat** | Monochrome | #E3000F (Red) | Bitcoin Austria brand red (default) | ![btcat](example-brand-btcat.jpg) |
+| **lightning** | Monochrome | #F59B1F (Orange) | Lightning Network orange | ![lightning](example-brand-lightning.jpg) |
+| **cypherpunk** | Monochrome | #00FF41 (Green) | Matrix/terminal green | ![cypherpunk](example-brand-cypherpunk.jpg) |
+| **rgb** | RGB | Full color | Dither each RGB channel separately | ![rgb](example-brand-rgb.jpg) |
+
+```bash
+# Bitcoin Austria red (default)
+./dither.sh --brand=btcat image.jpg
+
+# Lightning Network orange
+./dither.sh --brand=lightning --circle=0.5,0.5,0.3 image.jpg
+
+# Cypherpunk/Matrix green
+./dither.sh --brand=cypherpunk --grayscale image.jpg
+
+# RGB mode: separate dithering for R, G, B channels
+./dither.sh --brand=rgb --pattern=ordered image.jpg
+
+# Combine branding with patterns and shapes
+./dither.sh --brand=lightning --pattern=bitcoin --rect=0.5,0,1,1 image.jpg
+```
+
+**RGB Mode** is special: instead of using a single color, it dithers each color channel (Red, Green, Blue) independently, creating unique color-separation effects. This works with all dithering patterns.
 
 ### Global Options
 
