@@ -165,6 +165,30 @@ Define circular regions for dithering. Coordinates are specified as `x,y,radius`
 ./dither.sh --cut=horizontal --pos=0.4 image.jpg
 ```
 
+### Dithering Patterns
+
+Choose different dithering algorithms with `--pattern`.
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| **Floyd-Steinberg** | Default error diffusion (randomized) | ![Default](example-default.jpg) |
+| **Ordered** | Bayer 8x8 matrix (clean, grid-like) | ![Ordered](example-pattern-ordered.jpg) |
+| **Atkinson** | Softer error diffusion (vintage Mac feel) | ![Atkinson](example-pattern-atkinson.jpg) |
+| **Clustered-dot** | Newspaper-style clusters | ![Clustered](example-pattern-clustered.jpg) |
+| **Bitcoin** | Custom pattern inspired by Bitcoin grid | ![Bitcoin](example-pattern-bitcoin.jpg) |
+| **Hal** | Tribute to Hal Finney (PGP-era terminal style) | ![Hal](example-pattern-hal.jpg) |
+
+```bash
+# Ordered Bayer matrix
+./dither.sh --pattern=ordered image.jpg
+
+# Vintage Atkinson style
+./dither.sh --pattern=atkinson image.jpg
+
+# Hal Finney tribute (scanlines + noise)
+./dither.sh --pattern=hal --grayscale image.jpg
+```
+
 ### Global Options
 
 #### Grayscale
