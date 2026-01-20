@@ -161,12 +161,10 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         # Apply Floyd-Steinberg dithering
         dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize)
 
-        # Create RGB image with Austrian red
-        dithered_rgb = np.zeros((height, width - split_pos, 3), dtype=np.uint8)
-        for i in range(3):
-            dithered_rgb[:, :, i] = np.where(dithered_array == 0,
-                                              AUSTRIAN_RED[i],
-                                              255)
+        # Create RGB image with Austrian red using broadcasting
+        dithered_rgb = np.full((height, width - split_pos, 3), 255, dtype=np.uint8)
+        mask = dithered_array == 0
+        dithered_rgb[mask] = AUSTRIAN_RED
 
         dithered_part_img = Image.fromarray(dithered_rgb)
 
@@ -194,12 +192,10 @@ def dither_image(input_path, split_ratio=None, cut_direction='vertical', thresho
         # Apply Floyd-Steinberg dithering
         dithered_array = floyd_steinberg_dither(dither_array, threshold, randomize)
 
-        # Create RGB image with Austrian red
-        dithered_rgb = np.zeros((height - split_pos, width, 3), dtype=np.uint8)
-        for i in range(3):
-            dithered_rgb[:, :, i] = np.where(dithered_array == 0,
-                                              AUSTRIAN_RED[i],
-                                              255)
+        # Create RGB image with Austrian red using broadcasting
+        dithered_rgb = np.full((height - split_pos, width, 3), 255, dtype=np.uint8)
+        mask = dithered_array == 0
+        dithered_rgb[mask] = AUSTRIAN_RED
 
         dithered_part_img = Image.fromarray(dithered_rgb)
 
