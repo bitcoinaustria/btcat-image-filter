@@ -36,6 +36,47 @@ DARK_BACKGROUND: Tuple[int, int, int] = (34, 34, 34)  # #222222
 # Golden ratio (phi)
 GOLDEN_RATIO: float = 1.618033988749895
 
+# Dithering patterns
+DitherPattern = Literal['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal']
+
+# Matrices
+# Bayer 8x8 matrix
+BAYER_8x8 = np.array([
+    [ 0, 48, 12, 60,  3, 51, 15, 63],
+    [32, 16, 44, 28, 35, 19, 47, 31],
+    [ 8, 56,  4, 52, 11, 59,  7, 55],
+    [40, 24, 36, 20, 43, 27, 39, 23],
+    [ 2, 50, 14, 62,  1, 49, 13, 61],
+    [34, 18, 46, 30, 33, 17, 45, 29],
+    [10, 58,  6, 54,  9, 57,  5, 53],
+    [42, 26, 38, 22, 41, 25, 37, 21]
+], dtype=float) / 64.0
+
+# Clustered dot (Spiral 8x8)
+CLUSTERED_8x8 = np.array([
+    [24, 10, 12, 26, 35, 47, 49, 37],
+    [ 8,  0,  2, 14, 45, 59, 61, 51],
+    [22,  6,  4, 16, 43, 57, 63, 53],
+    [30, 20, 18, 28, 33, 41, 55, 39],
+    [36, 50, 48, 34, 27, 13, 11, 25],
+    [52, 62, 60, 46, 15,  3,  1,  9],
+    [54, 64, 58, 44, 17,  5,  7, 23],
+    [40, 56, 42, 32, 29, 19, 21, 31]
+], dtype=float) / 65.0
+
+# Bitcoin custom pattern (8x8)
+# Creates a subtle grid of "B" like shapes or block chain links
+BITCOIN_8x8 = np.array([
+    [60, 60, 60, 60, 60, 20, 20, 20],
+    [60, 10, 10, 10, 50, 20, 50, 20],
+    [60, 10, 60, 60, 60, 20, 50, 20],
+    [60, 10, 10, 10, 50, 20, 20, 20],
+    [60, 10, 60, 60, 60, 20, 50, 20],
+    [60, 10, 10, 10, 50, 20, 50, 20],
+    [60, 60, 60, 60, 60, 20, 20, 20],
+    [20, 20, 20, 20, 20, 20, 20, 20],
+], dtype=float) / 64.0
+
 
 def create_rectangle_mask(
     width: int,
@@ -167,7 +208,51 @@ def create_gradient_mask(
     return mask
 
 
-def floyd_steinberg_dither(
+def ordered_dither(
+    image_array: npt.NDArray[np.integer],
+    threshold: int,
+    matrix: npt.NDArray[np.float64],
+    threshold_offset: float = 0.0,
+    density_mask: Optional[npt.NDArray[np.float64]] = None,
+    seed: Optional[int] = None  # Unused but kept for interface consistency
+) -> npt.NDArray[np.uint8]:
+    """
+    Apply ordered dithering using a threshold matrix.
+    """
+    height, width = image_array.shape
+    mh, mw = matrix.shape
+
+    # Tile the matrix to cover the image
+    tiled_matrix = np.tile(matrix, (height // mh + 1, width // mw + 1))
+    tiled_matrix = tiled_matrix[:height, :width]
+
+    # Calculate effective threshold for each pixel
+    # Map matrix (0-1) to (0-255) and shift by user threshold
+    # Base threshold 128 -> center.
+    # We want: pixel > matrix_val * 255 + (threshold - 128)
+
+    threshold_shift = threshold - 128.0 + threshold_offset
+    effective_thresholds = (tiled_matrix * 255.0) + threshold_shift
+
+    # Determine which pixels are white (255)
+    result = np.zeros_like(image_array, dtype=np.uint8)
+    white_pixels = image_array > effective_thresholds
+
+    if density_mask is not None:
+        # For ordered dither, density mask is harder to apply probabilistically per pixel
+        # without breaking the pattern.
+        # We can use a random check against density mask
+        rng = np.random.default_rng(seed=seed)
+        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+        # If density check fails, force white (skip dithering/red)
+        skip_mask = density_random > density_mask
+        white_pixels = white_pixels | skip_mask
+
+    result[white_pixels] = 255
+    return result
+
+
+def atkinson_dither(
     image_array: npt.NDArray[np.integer],
     threshold: int = 128,
     randomize: bool = True,
@@ -175,6 +260,122 @@ def floyd_steinberg_dither(
     threshold_offset: float = 0.0,
     seed: Optional[int] = None,
     density_mask: Optional[npt.NDArray[np.float64]] = None
+) -> npt.NDArray[np.uint8]:
+    """
+    Apply Atkinson dithering algorithm.
+    Propagates error to 6 neighbors with 1/8 weight.
+    """
+    img = image_array.astype(float)
+    height, width = img.shape
+    rng = np.random.default_rng(seed=seed)
+
+    random_noise: npt.NDArray[np.float64]
+    if randomize:
+        random_noise = rng.uniform(-jitter, jitter, size=(height, width))
+    else:
+        random_noise = np.zeros((height, width))
+
+    density_random: Optional[npt.NDArray[np.float64]] = None
+    if density_mask is not None:
+        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+
+    for y in range(height):
+        for x in range(width):
+            old_pixel = img[y, x]
+            adjusted_threshold = threshold + random_noise[y, x] + threshold_offset
+
+            if density_mask is not None and density_random is not None:
+                if density_random[y, x] > density_mask[y, x]:
+                    img[y, x] = 255.0
+                    continue
+                else:
+                    new_pixel = 255 if old_pixel > adjusted_threshold else 0
+            else:
+                new_pixel = 255 if old_pixel > adjusted_threshold else 0
+
+            img[y, x] = new_pixel
+            error = old_pixel - new_pixel
+
+            # Atkinson distribution (1/8 to neighbors)
+            #       X   1   1
+            #   1   1   1
+            #       1
+            fraction = 1.0 / 8.0
+
+            # (x+1, y)
+            if x + 1 < width:
+                img[y, x + 1] += error * fraction
+            # (x+2, y)
+            if x + 2 < width:
+                img[y, x + 2] += error * fraction
+            # (x-1, y+1)
+            if y + 1 < height and x > 0:
+                img[y + 1, x - 1] += error * fraction
+            # (x, y+1)
+            if y + 1 < height:
+                img[y + 1, x] += error * fraction
+            # (x+1, y+1)
+            if y + 1 < height and x + 1 < width:
+                img[y + 1, x + 1] += error * fraction
+            # (x, y+2)
+            if y + 2 < height:
+                img[y + 2, x] += error * fraction
+
+    return (img > 128).astype(np.uint8) * 255
+
+
+def hal_dither(
+    image_array: npt.NDArray[np.integer],
+    threshold: int = 128,
+    threshold_offset: float = 0.0,
+    seed: Optional[int] = None,
+    density_mask: Optional[npt.NDArray[np.float64]] = None
+) -> npt.NDArray[np.uint8]:
+    """
+    Apply 'Hal' dithering (tribute to Hal Finney).
+    Simulates PGP-era terminal with scanline effects and subtle noise.
+    """
+    img = image_array.astype(float)
+    height, width = img.shape
+    rng = np.random.default_rng(seed=seed)
+
+    # Create scanline effect: modify threshold based on Y coordinate
+    # Alternating lines or every 4th line darker/lighter
+    y_coords, x_coords = np.indices((height, width))
+
+    # Scanline pattern: sine wave
+    scanline_pattern = np.sin(y_coords * 0.8) * 40.0
+
+    # Digital noise (subtle)
+    noise = rng.normal(0, 20.0, size=(height, width))
+
+    # Combine
+    adjusted_thresholds = threshold + scanline_pattern + noise + threshold_offset
+
+    # Determine pixels
+    result = np.zeros_like(image_array, dtype=np.uint8)
+
+    # Density mask check
+    should_dither = np.ones((height, width), dtype=bool)
+    if density_mask is not None:
+        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+        should_dither = density_random <= density_mask
+
+    white_pixels = (img > adjusted_thresholds) | (~should_dither)
+    result[white_pixels] = 255
+
+    return result
+
+
+def floyd_steinberg_dither(
+    image_array: npt.NDArray[np.integer],
+    threshold: int = 128,
+    randomize: bool = True,
+    jitter: float = 15.0,
+    threshold_offset: float = 0.0,
+    seed: Optional[int] = None,
+    density_mask: Optional[npt.NDArray[np.float64]] = None,
+    satoshi_mode: bool = False
 ) -> npt.NDArray[np.uint8]:
     """
     Apply Floyd-Steinberg dithering algorithm with optional randomization.
@@ -191,6 +392,7 @@ def floyd_steinberg_dither(
         seed: Random seed for reproducible results.
         density_mask: Optional mask controlling dithering density (0.0 to 1.0).
                      Values < 1.0 probabilistically skip pixels for fade effects.
+        satoshi_mode: Enable dynamic threshold based on local brightness.
 
     Returns:
         Binary dithered array
@@ -218,15 +420,22 @@ def floyd_steinberg_dither(
     for y in range(height):
         for x in range(width):
             old_pixel = img[y, x]
+
+            # Calculate base threshold
+            base_threshold = float(threshold)
+            if satoshi_mode:
+                # Dynamic threshold based on image brightness (Satoshi Mode)
+                # Brighter areas get higher threshold -> fewer red pixels
+                original_pixel = float(image_array[y, x])
+                base_threshold += (original_pixel - 128.0) * 0.5
+
             # Apply randomized threshold to reduce regular patterns
-            adjusted_threshold = threshold + random_noise[y, x] + threshold_offset
+            adjusted_threshold = base_threshold + random_noise[y, x] + threshold_offset
 
             # Check density mask - probabilistically skip pixels for fade effect
-            should_dither = True
             if density_mask is not None and density_random is not None:
                 if density_random[y, x] > density_mask[y, x]:
                     # Skip this pixel, force to white, don't propagate error
-                    should_dither = False
                     new_pixel = 255.0
                     img[y, x] = new_pixel
                     continue  # Skip error diffusion for this pixel
@@ -249,7 +458,7 @@ def floyd_steinberg_dither(
                 if x + 1 < width:
                     img[y + 1, x + 1] += error * 1 / 16
 
-    return (img > threshold).astype(np.uint8) * 255
+    return (img > 128).astype(np.uint8) * 255
 
 
 def get_output_filename(input_path: Union[str, Path]) -> Path:
@@ -279,6 +488,51 @@ def get_output_filename(input_path: Union[str, Path]) -> Path:
     return output_path
 
 
+def apply_dither(
+    pattern: DitherPattern,
+    image_array: npt.NDArray[np.integer],
+    threshold: int,
+    randomize: bool,
+    jitter: float,
+    threshold_offset: float,
+    seed: Optional[int],
+    density_mask: Optional[npt.NDArray[np.float64]],
+    satoshi_mode: bool = False
+) -> npt.NDArray[np.uint8]:
+    """
+    Dispatch to appropriate dithering function.
+    """
+    if pattern == 'floyd-steinberg':
+        return floyd_steinberg_dither(
+            image_array, threshold, randomize, jitter, threshold_offset, seed, density_mask, satoshi_mode
+        )
+    elif pattern == 'atkinson':
+        return atkinson_dither(
+            image_array, threshold, randomize, jitter, threshold_offset, seed, density_mask
+        )
+    elif pattern == 'ordered':
+        return ordered_dither(
+            image_array, threshold, BAYER_8x8, threshold_offset, density_mask, seed
+        )
+    elif pattern == 'clustered-dot':
+        return ordered_dither(
+            image_array, threshold, CLUSTERED_8x8, threshold_offset, density_mask, seed
+        )
+    elif pattern == 'bitcoin':
+        return ordered_dither(
+            image_array, threshold, BITCOIN_8x8, threshold_offset, density_mask, seed
+        )
+    elif pattern == 'hal':
+        return hal_dither(
+            image_array, threshold, threshold_offset, seed, density_mask
+        )
+    else:
+        # Fallback to FS
+        return floyd_steinberg_dither(
+            image_array, threshold, randomize, jitter, threshold_offset, seed, density_mask, satoshi_mode
+        )
+
+
 def dither_image(
     input_path: Union[str, Path],
     split_ratio: Optional[float] = None,
@@ -294,7 +548,9 @@ def dither_image(
     rectangles: Optional[list[tuple[float, float, float, float]]] = None,
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
-    background: Literal['white', 'dark'] = 'white'
+    background: Literal['white', 'dark'] = 'white',
+    pattern: DitherPattern = 'floyd-steinberg',
+    satoshi_mode: bool = False
 ) -> Path:
     """
     Apply dithering to a portion of an image using Austrian flag red.
@@ -316,6 +572,8 @@ def dither_image(
         fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
               1.0 = full density, 0.1 = only 10% of pixels dithered.
         background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
+        pattern: Dithering pattern to use.
+        satoshi_mode: Enable dynamic threshold based on local brightness.
 
     Returns:
         Path to output file
@@ -396,9 +654,9 @@ def dither_image(
         # Only apply where dither_mask is True
         density_mask = np.where(dither_mask, density_mask, 0.0)
 
-    # Apply Floyd-Steinberg dithering
-    dithered_array = floyd_steinberg_dither(
-        img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask
+    # Apply dithering
+    dithered_array = apply_dither(
+        pattern, img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
     )
 
     # Upscale if needed
@@ -471,6 +729,13 @@ def dither_image(
     help='Threshold for dithering (0-255)'
 )
 @click.option(
+    '--pattern',
+    type=click.Choice(['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal'], case_sensitive=False),
+    default='floyd-steinberg',
+    show_default=True,
+    help='Dithering pattern to use.'
+)
+@click.option(
     '--grayscale',
     is_flag=True,
     help='Convert entire image to grayscale before applying dithering'
@@ -537,11 +802,17 @@ def dither_image(
     show_default=True,
     help='Background color for dithered areas. "white" for white background, "dark" for dark gray (#222222).'
 )
+@click.option(
+    '--satoshi-mode',
+    is_flag=True,
+    help='Enable Satoshi Mode: Dynamic threshold based on local brightness.'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
     pos: Optional[float],
     threshold: int,
+    pattern: DitherPattern,
     grayscale: bool,
     no_randomize: bool,
     jitter: float,
@@ -552,7 +823,8 @@ def main(
     rect: tuple[str, ...],
     circle: tuple[str, ...],
     fade: Optional[float],
-    background: Literal['white', 'dark']
+    background: Literal['white', 'dark'],
+    satoshi_mode: bool
 ) -> None:
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
@@ -576,8 +848,10 @@ def main(
       Example: --rect=0,0,1,0.1 --circle=0.5,0.5,0.2
 
     Options apply globally:
+    - --pattern: Choose algorithm (floyd-steinberg, ordered, atkinson, clustered-dot, bitcoin, hal)
     - --grayscale: Converts entire image to grayscale before applying dithering
     - --fade: Controls dithering density (0.1 = sparse/10%, 1.0 = full density)
+    - --satoshi-mode: Adapts threshold per pixel based on local brightness
     """
     try:
         # Parse rectangle specifications
@@ -623,7 +897,9 @@ def main(
             rectangles=rectangles,
             circles=circles,
             fade=fade,
-            background=background
+            background=background,
+            pattern=pattern,
+            satoshi_mode=satoshi_mode
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:
