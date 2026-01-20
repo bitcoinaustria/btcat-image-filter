@@ -37,10 +37,10 @@ GOLDEN_RATIO: float = 1.618033988749895
 def create_rectangle_mask(
     width: int,
     height: int,
-    bl_x: float,
-    bl_y: float,
-    tr_x: float,
-    tr_y: float
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float
 ) -> npt.NDArray[np.bool_]:
     """
     Create a rectangular mask for dithering.
@@ -48,10 +48,10 @@ def create_rectangle_mask(
     Args:
         width: Image width in pixels
         height: Image height in pixels
-        bl_x: Bottom-left X coordinate (0.0 to 1.0)
-        bl_y: Bottom-left Y coordinate (0.0 to 1.0)
-        tr_x: Top-right X coordinate (0.0 to 1.0)
-        tr_y: Top-right Y coordinate (0.0 to 1.0)
+        x1: Left X coordinate (fraction, can be any value)
+        y1: Top Y coordinate (fraction, can be any value)
+        x2: Right X coordinate (fraction, can be any value)
+        y2: Bottom Y coordinate (fraction, can be any value)
 
     Returns:
         Boolean mask array where True indicates dithering area
@@ -59,21 +59,26 @@ def create_rectangle_mask(
     mask = np.zeros((height, width), dtype=bool)
 
     # Convert fractions to pixel coordinates
-    # Y coordinates: 0.0 = top, 1.0 = bottom (inverted for image coordinates)
-    x1 = int(bl_x * width)
-    y1 = int((1.0 - tr_y) * height)  # tr_y is top, invert
-    x2 = int(tr_x * width)
-    y2 = int((1.0 - bl_y) * height)  # bl_y is bottom, invert
+    px1 = int(x1 * width)
+    py1 = int(y1 * height)
+    px2 = int(x2 * width)
+    py2 = int(y2 * height)
 
-    # Ensure coordinates are within bounds
-    x1 = max(0, min(x1, width - 1))
-    x2 = max(0, min(x2, width - 1))
-    y1 = max(0, min(y1, height - 1))
-    y2 = max(0, min(y2, height - 1))
+    # Ensure coordinates are in correct order
+    if px1 > px2:
+        px1, px2 = px2, px1
+    if py1 > py2:
+        py1, py2 = py2, py1
+
+    # Clip to image bounds
+    px1 = max(0, min(px1, width))
+    px2 = max(0, min(px2, width))
+    py1 = max(0, min(py1, height))
+    py2 = max(0, min(py2, height))
 
     # Fill the rectangle
-    if x2 > x1 and y2 > y1:
-        mask[y1:y2, x1:x2] = True
+    if px2 > px1 and py2 > py1:
+        mask[py1:py2, px1:px2] = True
 
     return mask
 
@@ -281,14 +286,8 @@ def dither_image(
     darkness_offset: float = 0.0,
     seed: Optional[int] = None,
     output_path: Optional[Union[str, Path]] = None,
-    mode: Literal['cut', 'rect', 'circle'] = 'cut',
-    rect_bl_x: float = 0.2,
-    rect_bl_y: float = 0.2,
-    rect_tr_x: float = 0.8,
-    rect_tr_y: float = 0.8,
-    circle_x: float = 0.5,
-    circle_y: float = 0.5,
-    circle_r: float = 0.3,
+    rectangles: Optional[list[tuple[float, float, float, float]]] = None,
+    circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None
 ) -> Path:
     """
@@ -306,14 +305,8 @@ def dither_image(
         darkness_offset: Bias for darkness.
         seed: Random seed for reproducible results.
         output_path: Optional path for output file. If None, generated from input filename.
-        mode: Dithering mode: 'cut' (default), 'rect' (rectangle), or 'circle'
-        rect_bl_x: Rectangle bottom-left X (0.0 to 1.0, for 'rect' mode)
-        rect_bl_y: Rectangle bottom-left Y (0.0 to 1.0, for 'rect' mode)
-        rect_tr_x: Rectangle top-right X (0.0 to 1.0, for 'rect' mode)
-        rect_tr_y: Rectangle top-right Y (0.0 to 1.0, for 'rect' mode)
-        circle_x: Circle center X (0.0 to 1.0, for 'circle' mode)
-        circle_y: Circle center Y (0.0 to 1.0, for 'circle' mode)
-        circle_r: Circle radius (0.0 to 1.0, for 'circle' mode)
+        rectangles: List of rectangles [(x1, y1, x2, y2), ...]. Coordinates can be any float value.
+        circles: List of circles [(cx, cy, r), ...]. Coordinates can be any float value.
         fade: Fade-out intensity for 'cut' mode (0.0 to 1.0). If set, creates gradient.
 
     Returns:
@@ -361,10 +354,29 @@ def dither_image(
     # Create mask and density mask based on mode
     dither_mask: Optional[npt.NDArray[np.bool_]] = None
     density_mask: Optional[npt.NDArray[np.float64]] = None
+    h, w = img_array.shape
 
-    if mode == 'cut':
-        # Create mask for cut mode
-        h, w = img_array.shape
+    # Check if shapes (rectangles or circles) are specified
+    has_shapes = (rectangles and len(rectangles) > 0) or (circles and len(circles) > 0)
+
+    if has_shapes:
+        # Create combined mask from all shapes
+        dither_mask = np.zeros((h, w), dtype=bool)
+
+        # Add all rectangles
+        if rectangles:
+            for x1, y1, x2, y2 in rectangles:
+                rect_mask = create_rectangle_mask(w, h, x1, y1, x2, y2)
+                dither_mask = np.logical_or(dither_mask, rect_mask)
+
+        # Add all circles
+        if circles:
+            for cx, cy, r in circles:
+                circle_mask = create_circle_mask(w, h, cx, cy, r)
+                dither_mask = np.logical_or(dither_mask, circle_mask)
+
+    else:
+        # Fall back to cut mode
         dither_mask = np.zeros((h, w), dtype=bool)
 
         if cut_direction == 'vertical':
@@ -377,19 +389,6 @@ def dither_image(
         # Add gradient fade if specified
         if fade is not None:
             density_mask = create_gradient_mask(w, h, split_ratio, cut_direction, fade)
-
-    elif mode == 'rect':
-        # Create rectangular mask
-        h, w = img_array.shape
-        dither_mask = create_rectangle_mask(w, h, rect_bl_x, rect_bl_y, rect_tr_x, rect_tr_y)
-
-    elif mode == 'circle':
-        # Create circular mask
-        h, w = img_array.shape
-        dither_mask = create_circle_mask(w, h, circle_x, circle_y, circle_r)
-
-    else:
-        raise ValueError(f"Invalid mode: {mode}. Must be 'cut', 'rect', or 'circle'.")
 
     # Apply Floyd-Steinberg dithering
     dithered_array = floyd_steinberg_dither(
@@ -508,60 +507,14 @@ def dither_image(
     help='Output file path. Defaults to automatic naming.'
 )
 @click.option(
-    '--mode',
-    type=click.Choice(['cut', 'rect', 'circle'], case_sensitive=False),
-    default='cut',
-    show_default=True,
-    help='Dithering mode: cut (default), rect (rectangle), or circle'
+    '--rect',
+    multiple=True,
+    help='Rectangle region: x1,y1,x2,y2 (fractions, can be outside 0-1). Can be specified multiple times.'
 )
 @click.option(
-    '--rect-bl-x',
-    type=click.FloatRange(0.0, 1.0),
-    default=0.2,
-    show_default=True,
-    help='Rectangle mode: bottom-left X coordinate (0.0 to 1.0)'
-)
-@click.option(
-    '--rect-bl-y',
-    type=click.FloatRange(0.0, 1.0),
-    default=0.2,
-    show_default=True,
-    help='Rectangle mode: bottom-left Y coordinate (0.0 to 1.0)'
-)
-@click.option(
-    '--rect-tr-x',
-    type=click.FloatRange(0.0, 1.0),
-    default=0.8,
-    show_default=True,
-    help='Rectangle mode: top-right X coordinate (0.0 to 1.0)'
-)
-@click.option(
-    '--rect-tr-y',
-    type=click.FloatRange(0.0, 1.0),
-    default=0.8,
-    show_default=True,
-    help='Rectangle mode: top-right Y coordinate (0.0 to 1.0)'
-)
-@click.option(
-    '--circle-x',
-    type=click.FloatRange(0.0, 1.0),
-    default=0.5,
-    show_default=True,
-    help='Circle mode: center X coordinate (0.0 to 1.0)'
-)
-@click.option(
-    '--circle-y',
-    type=click.FloatRange(0.0, 1.0),
-    default=0.5,
-    show_default=True,
-    help='Circle mode: center Y coordinate (0.0 to 1.0)'
-)
-@click.option(
-    '--circle-r',
-    type=click.FloatRange(0.0, 1.0),
-    default=0.3,
-    show_default=True,
-    help='Circle mode: radius (0.0 to 1.0, fraction of image dimensions)'
+    '--circle',
+    multiple=True,
+    help='Circle region: x,y,radius (fractions, can be outside 0-1). Can be specified multiple times.'
 )
 @click.option(
     '--fade',
@@ -581,14 +534,8 @@ def main(
     darkness: float,
     seed: Optional[int],
     output: Optional[str],
-    mode: Literal['cut', 'rect', 'circle'],
-    rect_bl_x: float,
-    rect_bl_y: float,
-    rect_tr_x: float,
-    rect_tr_y: float,
-    circle_x: float,
-    circle_y: float,
-    circle_r: float,
+    rect: tuple[str, ...],
+    circle: tuple[str, ...],
     fade: Optional[float]
 ) -> None:
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
@@ -599,12 +546,45 @@ def main(
     more organic, less regular patterns. Use --no-randomize for classic
     Floyd-Steinberg without randomization.
 
-    Supports three dithering modes:
-    - cut: Traditional cut mode (vertical or horizontal)
-    - rect: Rectangle mode (dither within a rectangular region)
-    - circle: Circle mode (dither within a circular region)
+    Supports multiple dithering modes:
+
+    - Cut mode (default): Traditional cut (vertical or horizontal)
+
+    - Rectangle mode: Specify one or more rectangles with --rect=x1,y1,x2,y2
+      Example: --rect=0,0,0.1,1 --rect=0.9,0,1,1 (left and right strips)
+
+    - Circle mode: Specify one or more circles with --circle=x,y,radius
+      Example: --circle=0.5,0.5,0.2 (centered circle)
     """
     try:
+        # Parse rectangle specifications
+        rectangles: Optional[list[tuple[float, float, float, float]]] = None
+        if rect:
+            rectangles = []
+            for r in rect:
+                try:
+                    parts = [float(x.strip()) for x in r.split(',')]
+                    if len(parts) != 4:
+                        raise ValueError(f"Rectangle must have 4 values (x1,y1,x2,y2), got {len(parts)}")
+                    rectangles.append((parts[0], parts[1], parts[2], parts[3]))
+                except ValueError as e:
+                    click.secho(f"Error parsing rectangle '{r}': {e}", fg='red', err=True)
+                    sys.exit(1)
+
+        # Parse circle specifications
+        circles: Optional[list[tuple[float, float, float]]] = None
+        if circle:
+            circles = []
+            for c in circle:
+                try:
+                    parts = [float(x.strip()) for x in c.split(',')]
+                    if len(parts) != 3:
+                        raise ValueError(f"Circle must have 3 values (x,y,radius), got {len(parts)}")
+                    circles.append((parts[0], parts[1], parts[2]))
+                except ValueError as e:
+                    click.secho(f"Error parsing circle '{c}': {e}", fg='red', err=True)
+                    sys.exit(1)
+
         output_path = dither_image(
             image,
             split_ratio=pos,
@@ -617,14 +597,8 @@ def main(
             darkness_offset=darkness,
             seed=seed,
             output_path=output,
-            mode=mode,
-            rect_bl_x=rect_bl_x,
-            rect_bl_y=rect_bl_y,
-            rect_tr_x=rect_tr_x,
-            rect_tr_y=rect_tr_y,
-            circle_x=circle_x,
-            circle_y=circle_y,
-            circle_r=circle_r,
+            rectangles=rectangles,
+            circles=circles,
             fade=fade
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
