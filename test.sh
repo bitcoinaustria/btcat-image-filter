@@ -7,52 +7,79 @@ uv sync --quiet
 echo "Running pyright..."
 uv run pyright main.py
 
-echo "Running e2e test..."
-# Generate a dithered image with a fixed seed
-# Test features: grayscale, rectangle, circle, and fade (gradient) effect
-INPUT_IMG="test-image-800px.jpg"
-# Output as PNG for stable comparison
-OUTPUT_IMG="test-image-800px-dither.png"
-REFERENCE_IMG="reference-dither.png"
-SEED=42
+echo "Running e2e tests..."
+echo ""
 
-# Clean up previous run
-rm -f "$OUTPUT_IMG"
+# Create temporary directory for generated images
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
 
-# Run the tool with advanced features:
-# - Rectangle on right half: --rect=0.5,0,1,1
-# - Circle in center: --circle=0.5,0.5,0.3
-# - Fade effect at 50% density: --fade=0.5
-# - Grayscale entire image: --grayscale
-# - Dark background: --background=dark
-uv run python main.py "$INPUT_IMG" \
-    --rect=0.5,0,1,1 \
-    --circle=0.5,0.5,0.3 \
-    --fade=0.5 \
-    --grayscale \
-    --background=dark \
-    --seed "$SEED" \
-    --output "$OUTPUT_IMG"
+echo "Generating all example images in temporary directory..."
+./generate-examples.sh "$TEMP_DIR" > /dev/null 2>&1
 
-# Check if reference image exists
-if [ ! -f "$REFERENCE_IMG" ]; then
-    echo "Warning: Reference image $REFERENCE_IMG not found."
-    echo "Creating it now from the current output to serve as a baseline."
-    cp "$OUTPUT_IMG" "$REFERENCE_IMG"
-    echo "Reference image created. Please verify it visually."
-else
-    # Compare output with reference
-    if cmp -s "$OUTPUT_IMG" "$REFERENCE_IMG"; then
-        echo "e2e test passed: Output matches reference."
-    else
-        echo "e2e test failed: Output differs from reference."
-        echo "Expected: $REFERENCE_IMG"
-        echo "Got: $OUTPUT_IMG"
-        exit 1
+# List of all example images to test
+EXAMPLES=(
+    "example-basic.jpg"
+    "example-shapes.jpg"
+    "example-fade.jpg"
+    "example-jitter-high.jpg"
+    "example-glitch.jpg"
+    "example-default.jpg"
+    "example-jitter.jpg"
+    "example-scaled.jpg"
+    "example-dark.jpg"
+    "example-pattern-ordered.jpg"
+    "example-pattern-atkinson.jpg"
+    "example-pattern-clustered.jpg"
+    "example-pattern-bitcoin.jpg"
+    "example-pattern-hal.jpg"
+    "example-brand-btcat.jpg"
+    "example-brand-lightning.jpg"
+    "example-brand-cypherpunk.jpg"
+    "example-brand-rgb.jpg"
+)
+
+# Compare each generated image with reference
+PASSED=0
+FAILED=0
+MISSING=0
+
+for example in "${EXAMPLES[@]}"; do
+    if [ ! -f "$example" ]; then
+        echo "⚠️  MISSING: $example (reference not in repo)"
+        MISSING=$((MISSING + 1))
+        continue
     fi
+
+    if cmp -s "$TEMP_DIR/$example" "$example"; then
+        echo "✓ PASSED: $example"
+        PASSED=$((PASSED + 1))
+    else
+        echo "✗ FAILED: $example (output differs from reference)"
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Test Results:"
+echo "  Passed:  $PASSED"
+echo "  Failed:  $FAILED"
+echo "  Missing: $MISSING"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+if [ $FAILED -gt 0 ]; then
+    echo "❌ Some tests failed!"
+    echo "Generated images are in: $TEMP_DIR"
+    echo "Compare with: cmp <generated> <reference>"
+    trap - EXIT  # Don't delete temp dir on failure
+    exit 1
 fi
 
-# Clean up
-rm -f "$OUTPUT_IMG"
+if [ $MISSING -gt 0 ]; then
+    echo "⚠️  Some reference images are missing (not committed to repo)"
+    echo "Run: ./generate-examples.sh && git add -f example-*.jpg"
+fi
 
-echo "All tests passed!"
+echo "✓ All e2e tests passed!"
