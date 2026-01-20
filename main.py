@@ -272,21 +272,35 @@ def ordered_dither(
     threshold_shift = threshold - 128.0 + threshold_offset
     effective_thresholds = (tiled_matrix * 255.0) + threshold_shift
 
-    # Determine which pixels are white (255)
-    result = np.zeros_like(image_array, dtype=np.uint8)
-    white_pixels = image_array > effective_thresholds
+    # Start with original image values
+    result = image_array.astype(np.uint8).copy()
+
+    # Create dithering mask (where to apply dithering)
+    dither_mask_pixels = np.ones((height, width), dtype=bool)
 
     if density_mask is not None:
-        # For ordered dither, density mask is harder to apply probabilistically per pixel
-        # without breaking the pattern.
-        # We can use a random check against density mask
+        # Mark pixels outside dithered region (density_mask == 0) to preserve
+        outside_region = density_mask == 0.0
+        dither_mask_pixels[outside_region] = False
+
+        # For pixels inside the region, apply probabilistic fade
         rng = np.random.default_rng(seed=seed)
         density_random = rng.uniform(0.0, 1.0, size=(height, width))
-        # If density check fails, force white (skip dithering/red)
+        # Skip pixels where random > density (fade effect)
         skip_mask = density_random > density_mask
-        white_pixels = white_pixels | skip_mask
+        # But only within the dithered region
+        skip_mask = skip_mask & ~outside_region
+    else:
+        skip_mask = np.zeros((height, width), dtype=bool)
 
-    result[white_pixels] = 255
+    # Determine which pixels should be white (255) vs black (0)
+    white_pixels = (image_array > effective_thresholds) & dither_mask_pixels
+    black_pixels = (image_array <= effective_thresholds) & dither_mask_pixels
+
+    # Apply dithering only where dither_mask_pixels is True
+    result[white_pixels | skip_mask] = 255
+    result[black_pixels & ~skip_mask] = 0
+
     return result
 
 
@@ -324,7 +338,11 @@ def atkinson_dither(
             adjusted_threshold = threshold + random_noise[y, x] + threshold_offset
 
             if density_mask is not None and density_random is not None:
-                if density_random[y, x] > density_mask[y, x]:
+                if density_mask[y, x] == 0.0:
+                    # Outside dithered region - preserve original pixel
+                    continue
+                elif density_random[y, x] > density_mask[y, x]:
+                    # Within dithered region but skipped for fade
                     img[y, x] = 255.0
                     continue
                 else:
@@ -391,17 +409,28 @@ def hal_dither(
     # Combine
     adjusted_thresholds = threshold + scanline_pattern + noise + threshold_offset
 
-    # Determine pixels
-    result = np.zeros_like(image_array, dtype=np.uint8)
+    # Start with original image values
+    result = image_array.astype(np.uint8).copy()
 
     # Density mask check
     should_dither = np.ones((height, width), dtype=bool)
     if density_mask is not None:
+        # Pixels outside dithered region (density_mask == 0) should not be modified
+        outside_region = density_mask == 0.0
+        # For pixels inside region, apply probabilistic fade
         density_random = rng.uniform(0.0, 1.0, size=(height, width))
-        should_dither = density_random <= density_mask
+        skip_fade = (density_random > density_mask) & ~outside_region
+        should_dither = ~outside_region & ~skip_fade
 
-    white_pixels = (img > adjusted_thresholds) | (~should_dither)
+        # Skipped pixels (fade effect) within region become white
+        result[skip_fade] = 255
+
+    # Apply dithering where should_dither is True
+    white_pixels = (img > adjusted_thresholds) & should_dither
+    black_pixels = (img <= adjusted_thresholds) & should_dither
+
     result[white_pixels] = 255
+    result[black_pixels] = 0
 
     return result
 
@@ -473,8 +502,11 @@ def floyd_steinberg_dither(
 
             # Check density mask - probabilistically skip pixels for fade effect
             if density_mask is not None and density_random is not None:
-                if density_random[y, x] > density_mask[y, x]:
-                    # Skip this pixel, force to white, don't propagate error
+                if density_mask[y, x] == 0.0:
+                    # Outside dithered region - preserve original pixel, don't modify
+                    continue
+                elif density_random[y, x] > density_mask[y, x]:
+                    # Within dithered region but skipped for fade - force to white
                     new_pixel = 255.0
                     img[y, x] = new_pixel
                     continue  # Skip error diffusion for this pixel
