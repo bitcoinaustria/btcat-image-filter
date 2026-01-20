@@ -34,12 +34,12 @@ The entire image is converted to grayscale, then the right 33% is dithered in Au
 ### Example 2: Multiple Shapes with Grayscale
 
 ```bash
-./dither.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 --circle=0.5,0.5,0.2 --grayscale test-image-800px.jpg
+./dither.sh --rect=0,0,0.2,1 --rect=0.8,0,1,1 --circle=0.5,0.5,0.2 --jitter=33 --grayscale test-image-800px.jpg
 ```
 
 ![Shapes Example](example-shapes.jpg)
 
-Creates two vertical strips on the edges plus a circle in the center, all on a grayscale background.
+Creates two wider vertical strips on the edges (20% width each) plus a circle in the center, all on a grayscale background. The jitter value of 33 adds subtle randomness to the dithering pattern.
 
 ### Example 3: Subtle Dithering with Dark Background
 
