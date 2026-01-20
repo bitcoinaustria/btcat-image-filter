@@ -27,8 +27,13 @@ import numpy.typing as npt
 from typing import Optional, Union, Tuple, Literal
 
 
-# Austrian flag red color (Bitcoin Austria brand identity)
-AUSTRIAN_RED: Tuple[int, int, int] = (227, 0, 15)  # #E3000F
+# Brand definitions
+BRANDS = {
+    'btcat': {'color': (227, 0, 15), 'type': 'monochrome'},       # #E3000F
+    'lightning': {'color': (245, 155, 31), 'type': 'monochrome'}, # #F59B1F
+    'cypherpunk': {'color': (0, 255, 65), 'type': 'monochrome'},  # #00FF41
+    'rgb': {'type': 'rgb'}
+}
 
 # Dark background color for dithered areas
 DARK_BACKGROUND: Tuple[int, int, int] = (34, 34, 34)  # #222222
@@ -306,10 +311,11 @@ def dither_image(
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
     background: Literal['white', 'dark'] = 'white',
-    satoshi_mode: bool = False
+    satoshi_mode: bool = False,
+    brand: str = 'btcat'
 ) -> Path:
     """
-    Apply dithering to a portion of an image using Austrian flag red.
+    Apply dithering to a portion of an image using brand colors.
 
     Args:
         input_path: Path to input image file
@@ -329,6 +335,7 @@ def dither_image(
               1.0 = full density, 0.1 = only 10% of pixels dithered.
         background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
         satoshi_mode: Enable dynamic threshold based on local brightness.
+        brand: Brand palette to use ('btcat', 'lightning', 'cypherpunk', 'rgb').
 
     Returns:
         Path to output file
@@ -356,25 +363,43 @@ def dither_image(
     # Keep a copy of the base image for non-dithered areas
     base_img = img.copy()
 
-    # Convert to grayscale for dithering
-    img_gray = img.convert('L')
+    # Handle RGB brand vs Monochrome brands
+    brand_config = BRANDS.get(brand, BRANDS['btcat'])
+    is_rgb_mode = brand_config['type'] == 'rgb'
 
     # Calculate scale factor based on total image width
     scale_factor = 1.0
     if reference_width > 0 and width > reference_width:
         scale_factor = width / reference_width
 
-    # Scale down if needed
     original_size = (width, height)
-    if scale_factor > 1.0:
-        new_size = (int(width / scale_factor), int(height / scale_factor))
-        new_size = (max(1, new_size[0]), max(1, new_size[1]))
-        img_gray = img_gray.resize(new_size, Image.Resampling.LANCZOS)
 
-    img_array = np.array(img_gray)
+    # Prepare image for dithering (Grayscale or separate RGB channels)
+    if is_rgb_mode:
+        # Split into channels
+        channels = img.split() # R, G, B
+        channel_arrays = []
+        for channel in channels:
+            if scale_factor > 1.0:
+                new_size = (int(width / scale_factor), int(height / scale_factor))
+                new_size = (max(1, new_size[0]), max(1, new_size[1]))
+                channel = channel.resize(new_size, Image.Resampling.LANCZOS)
+            channel_arrays.append(np.array(channel))
 
-    # Create mask and density mask based on mode
-    h, w = img_array.shape
+        # Determine dimensions from first channel (all should be same)
+        h, w = channel_arrays[0].shape
+        # Initialize img_array to avoid unbound error (though unused in rgb mode)
+        img_array = np.zeros((h, w), dtype=np.uint8)
+    else:
+        # Convert to grayscale for dithering
+        img_gray = img.convert('L')
+        if scale_factor > 1.0:
+            new_size = (int(width / scale_factor), int(height / scale_factor))
+            new_size = (max(1, new_size[0]), max(1, new_size[1]))
+            img_gray = img_gray.resize(new_size, Image.Resampling.LANCZOS)
+
+        img_array = np.array(img_gray)
+        h, w = img_array.shape
 
     # If no shapes specified, create default rectangle for cut mode (backward compatibility)
     if not rectangles and not circles:
@@ -410,15 +435,31 @@ def dither_image(
         density_mask = np.where(dither_mask, density_mask, 0.0)
 
     # Apply Floyd-Steinberg dithering
-    dithered_array = floyd_steinberg_dither(
-        img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
-    )
+    if is_rgb_mode:
+        dithered_channels = []
+        for i, channel_array in enumerate(channel_arrays): # type: ignore
+             d_array = floyd_steinberg_dither(
+                channel_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
+            )
+             dithered_channels.append(d_array)
+
+        # Combine channels
+        dithered_array = np.dstack(dithered_channels) # (h, w, 3)
+    else:
+        dithered_array = floyd_steinberg_dither(
+            img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
+        )
 
     # Upscale if needed
     if scale_factor > 1.0:
-        dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
-        dithered_img_temp = dithered_img_temp.resize(original_size, Image.Resampling.NEAREST)
-        dithered_array = np.array(dithered_img_temp)
+        if is_rgb_mode:
+             dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
+             dithered_img_temp = dithered_img_temp.resize(original_size, Image.Resampling.NEAREST)
+             dithered_array = np.array(dithered_img_temp)
+        else:
+            dithered_img_temp = Image.fromarray(dithered_array.astype(np.uint8))
+            dithered_img_temp = dithered_img_temp.resize(original_size, Image.Resampling.NEAREST)
+            dithered_array = np.array(dithered_img_temp)
 
         # Also upscale the mask
         if dither_mask is not None:
@@ -426,12 +467,20 @@ def dither_image(
             mask_img = mask_img.resize(original_size, Image.Resampling.NEAREST)
             dither_mask = np.array(mask_img) > 128
 
-    # Create RGB image with Austrian red for dithered pixels
+    # Create RGB image
     # Background color depends on mode: white or dark
     bg_color = DARK_BACKGROUND if background == 'dark' else (255, 255, 255)
     dithered_rgb = np.zeros((height, width, 3), dtype=np.uint8)
-    for i in range(3):
-        dithered_rgb[:, :, i] = np.where(dithered_array == 0, AUSTRIAN_RED[i], bg_color[i])
+
+    if is_rgb_mode:
+        for i in range(3):
+             # Map 255 (background) to bg_color, and 0 (ink) to 0.
+             dithered_rgb[:, :, i] = np.where(dithered_array[:, :, i] == 255, bg_color[i], 0)
+    else:
+        # Monochrome mode
+        brand_color = brand_config.get('color', (0,0,0))
+        for i in range(3):
+            dithered_rgb[:, :, i] = np.where(dithered_array == 0, brand_color[i], bg_color[i])
 
     # Create result image by compositing
     result_array = np.array(base_img)
@@ -555,6 +604,13 @@ def dither_image(
     is_flag=True,
     help='Enable Satoshi Mode: Dynamic threshold based on local brightness.'
 )
+@click.option(
+    '--brand',
+    type=click.Choice(list(BRANDS.keys()), case_sensitive=False),
+    default='btcat',
+    show_default=True,
+    help='Brand palette to use.'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -571,9 +627,10 @@ def main(
     circle: tuple[str, ...],
     fade: Optional[float],
     background: Literal['white', 'dark'],
-    satoshi_mode: bool
+    satoshi_mode: bool,
+    brand: str
 ) -> None:
-    """Apply monochrome dithering to a portion of an image using Austrian flag red.
+    """Apply monochrome dithering to a portion of an image using brand colors.
 
     IMAGE is the path to the input image file (PNG or JPG).
 
@@ -644,7 +701,8 @@ def main(
             circles=circles,
             fade=fade,
             background=background,
-            satoshi_mode=satoshi_mode
+            satoshi_mode=satoshi_mode,
+            brand=brand
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:
