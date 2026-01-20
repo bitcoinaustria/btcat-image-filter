@@ -189,6 +189,36 @@ Choose different dithering algorithms with `--pattern`.
 ./dither.sh --pattern=hal --grayscale image.jpg
 ```
 
+### Branding
+
+Choose different color palettes with `--brand` to match your project's identity.
+
+| Brand | Type | Color | Description | Example |
+|-------|------|-------|-------------|---------|
+| **btcat** | Monochrome | #E3000F (Red) | Bitcoin Austria brand red (default) | ![btcat](example-brand-btcat.jpg) |
+| **lightning** | Monochrome | #F59B1F (Orange) | Lightning Network orange | ![lightning](example-brand-lightning.jpg) |
+| **cypherpunk** | Monochrome | #00FF41 (Green) | Matrix/terminal green | ![cypherpunk](example-brand-cypherpunk.jpg) |
+| **rgb** | RGB | Full color | Dither each RGB channel separately | ![rgb](example-brand-rgb.jpg) |
+
+```bash
+# Bitcoin Austria red (default)
+./dither.sh --brand=btcat image.jpg
+
+# Lightning Network orange
+./dither.sh --brand=lightning --circle=0.5,0.5,0.3 image.jpg
+
+# Cypherpunk/Matrix green
+./dither.sh --brand=cypherpunk --grayscale image.jpg
+
+# RGB mode: separate dithering for R, G, B channels
+./dither.sh --brand=rgb --pattern=ordered image.jpg
+
+# Combine branding with patterns and shapes
+./dither.sh --brand=lightning --pattern=bitcoin --rect=0.5,0,1,1 image.jpg
+```
+
+**RGB Mode** is special: instead of using a single color, it dithers each color channel (Red, Green, Blue) independently, creating unique color-separation effects. This works with all dithering patterns.
+
 ### Global Options
 
 #### Grayscale
