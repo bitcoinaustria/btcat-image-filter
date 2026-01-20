@@ -1,6 +1,6 @@
-# btcat-img-dither
+# Bitcoin Austria Image Filter
 
-Image dithering tool that applies monochrome dithering to a portion of an image using Bitcoin Austria brand red (#E3000F).
+Image dithering/filter tool that applies effects to a portion of an image using Bitcoin Austria brand red (#E3000F) and other art styles.
 
 ## Features
 
