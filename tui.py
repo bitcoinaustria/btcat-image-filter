@@ -189,6 +189,16 @@ class DitheringScreen(Screen):
             yield Label("Fade / Density (0.1 - 1.0)")
             yield Input(value="1.0", id="fade")
 
+            yield Label("--- Gradient (overrides Fade) ---", classes="header-label")
+            yield Label("Gradient Angle (0-360°, empty=off)")
+            yield Input(value="", placeholder="0=H, 90=V, 180=H-rev", id="gradient_angle")
+
+            yield Label("Gradient Start Density (0.0-1.0)")
+            yield Input(value="1.0", id="gradient_start")
+
+            yield Label("Gradient End Density (0.0-1.0)")
+            yield Input(value="0.1", id="gradient_end")
+
             yield Label("Background")
             yield Select.from_values(["white", "dark"], value="white", id="background")
 
@@ -298,6 +308,18 @@ class DitheringScreen(Screen):
                 fade_val = 1.0
             fade = fade_val if fade_val < 1.0 else None
 
+            # Parse gradient parameters
+            gradient: Optional[Tuple[float, float, float]] = None
+            try:
+                gradient_angle_str = self.query_one("#gradient_angle", Input).value
+                if gradient_angle_str.strip():
+                    gradient_angle = float(gradient_angle_str)
+                    gradient_start = float(self.query_one("#gradient_start", Input).value)
+                    gradient_end = float(self.query_one("#gradient_end", Input).value)
+                    gradient = (gradient_angle, gradient_start, gradient_end)
+            except ValueError:
+                gradient = None
+
             bg_val = self.query_one("#background", Select).value
             bg_str = str(bg_val) if bg_val != Select.BLANK else "white"
             bg: Literal['white', 'dark'] = cast(Literal['white', 'dark'], bg_str)
@@ -321,6 +343,7 @@ class DitheringScreen(Screen):
                 reference_width=ref_width,
                 darkness_offset=darkness,
                 fade=fade,
+                gradient=gradient,
                 background=bg,
                 satoshi_mode=satoshi,
                 pattern=pattern,
