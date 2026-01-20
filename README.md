@@ -63,6 +63,16 @@ Dithers the right 50% of the image with 40% pixel density on a dark background (
 
 High jitter (100) creates more randomness and organic texture. The default jitter is 30, and `--no-randomize` disables it completely for classic Floyd-Steinberg dithering.
 
+### Example 5: Satoshi Mode
+
+```bash
+./dither.sh --circle=0.5,0.5,0.3 --satoshi-mode test-image-800px.jpg
+```
+
+“The network self-adjusts.”
+
+Dynamic thresholding adapts to local brightness, preserving more detail in bright and dark areas.
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |
@@ -237,6 +247,15 @@ Adjust the darkness of the dithered output.
 
 # Make the result lighter (more white pixels)
 ./dither.sh --darkness -30 image.jpg
+```
+
+#### Satoshi Mode
+
+Enable dynamic thresholding that adapts per pixel based on local brightness.
+
+```bash
+# Brighter areas get higher threshold -> fewer red pixels
+./dither.sh --satoshi-mode image.jpg
 ```
 
 ### Advanced Combinations
