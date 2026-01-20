@@ -80,6 +80,15 @@ uv run python main.py "$INPUT_IMG" \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-gradient.jpg"
 
+# Example 9: Gradient Density (Reversed)
+echo "Generating example-gradient-reverse.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --circle=0.25,0.5,0.2 \
+    --rect=0.5,0,1,1 \
+    --gradient=180,1.0,0.1 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-gradient-reverse.jpg"
+
 # Fine-tuning: Default
 echo "Generating example-default.jpg..."
 uv run python main.py "$INPUT_IMG" \

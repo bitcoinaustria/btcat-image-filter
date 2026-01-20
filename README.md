@@ -117,6 +117,16 @@ The `--gradient` option uses `angle,start,end` format:
 
 Use any angle for diagonal or custom directions.
 
+### Example 9: Gradient Density (Reversed)
+
+```bash
+./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=180,1.0,0.1 test-image-800px.jpg
+```
+
+![Gradient Reverse Example](example-gradient-reverse.jpg)
+
+Same composition as Example 8, but with the gradient reversed (180°). The gradient now goes from 100% density (right) to 10% density (left), creating the opposite fade direction. This demonstrates how changing the angle parameter reverses the gradient flow while keeping all other parameters identical.
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |
