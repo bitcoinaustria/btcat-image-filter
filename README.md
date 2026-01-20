@@ -88,6 +88,16 @@ Introduces controlled data degradation for cyberpunk aesthetics:
 - Shifts color channels (RGB offset)
 - Repeats error diffusion passes with feedback noise
 
+### Example 7: Glitch Mode with Fade
+
+```bash
+./dither.sh --glitch=0.2 --grayscale --fade=0.9 --jitter=10 test-image-800px.jpg
+```
+
+![Glitch Fade Example](example-glitch-fade.jpg)
+
+Higher glitch intensity (0.2) combined with heavy 90% fade and low jitter creates an extremely sparse, ghostly corruption effect. The minimal pixel distribution lets the glitching breathe.
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |

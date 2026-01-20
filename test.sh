@@ -24,6 +24,7 @@ EXAMPLES=(
     "example-fade.jpg"
     "example-jitter-high.jpg"
     "example-glitch.jpg"
+    "example-glitch-fade.jpg"
     "example-default.jpg"
     "example-jitter.jpg"
     "example-scaled.jpg"

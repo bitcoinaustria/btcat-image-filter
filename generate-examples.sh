@@ -61,6 +61,16 @@ uv run python main.py "$INPUT_IMG" \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-glitch.jpg"
 
+# Example 7: Glitch Mode with Fade
+echo "Generating example-glitch-fade.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --glitch=0.2 \
+    --grayscale \
+    --fade=0.9 \
+    --jitter=10 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-glitch-fade.jpg"
+
 # Fine-tuning: Default
 echo "Generating example-default.jpg..."
 uv run python main.py "$INPUT_IMG" \
