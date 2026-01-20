@@ -402,7 +402,6 @@ def hal_dither(
 
     white_pixels = (img > adjusted_thresholds) | (~should_dither)
     result[white_pixels] = 255
->>>>>>> origin/main
 
     return result
 
