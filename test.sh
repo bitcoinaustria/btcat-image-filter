@@ -9,6 +9,7 @@ uv run pyright main.py
 
 echo "Running e2e test..."
 # Generate a dithered image with a fixed seed
+# Test features: grayscale, rectangle, circle, and fade (gradient) effect
 INPUT_IMG="test-image-800px.jpg"
 # Output as PNG for stable comparison
 OUTPUT_IMG="test-image-800px-dither.png"
@@ -18,9 +19,18 @@ SEED=42
 # Clean up previous run
 rm -f "$OUTPUT_IMG"
 
-# Run the tool
-# Using --output to force PNG format
-uv run python main.py "$INPUT_IMG" --seed "$SEED" --output "$OUTPUT_IMG"
+# Run the tool with advanced features:
+# - Rectangle on right half: --rect=0.5,0,1,1
+# - Circle in center: --circle=0.5,0.5,0.3
+# - Fade effect at 50% density: --fade=0.5
+# - Grayscale entire image: --grayscale
+uv run python main.py "$INPUT_IMG" \
+    --rect=0.5,0,1,1 \
+    --circle=0.5,0.5,0.3 \
+    --fade=0.5 \
+    --grayscale \
+    --seed "$SEED" \
+    --output "$OUTPUT_IMG"
 
 # Check if reference image exists
 if [ ! -f "$REFERENCE_IMG" ]; then
