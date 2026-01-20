@@ -167,6 +167,39 @@ def create_gradient_mask(
     return mask
 
 
+def glitch_swap_rows(
+    image_array: npt.NDArray[np.integer],
+    intensity: float,
+    seed: Optional[int] = None
+) -> npt.NDArray[np.integer]:
+    """
+    Randomly swap rows in the image array based on intensity.
+
+    Args:
+        image_array: Numpy array (2D or 3D)
+        intensity: Glitch intensity (0.0 to 1.0)
+        seed: Random seed
+
+    Returns:
+        Modified array
+    """
+    rng = np.random.default_rng(seed)
+    height = image_array.shape[0]
+
+    # Determine number of swaps based on intensity (max 50% of rows for 1.0)
+    num_swaps = int(height * intensity * 0.5)
+
+    result = image_array.copy()
+
+    for _ in range(num_swaps):
+        y1 = rng.integers(0, height)
+        y2 = rng.integers(0, height)
+        # Swap rows
+        result[y1], result[y2] = result[y2].copy(), result[y1].copy()
+
+    return result
+
+
 def floyd_steinberg_dither(
     image_array: npt.NDArray[np.integer],
     threshold: int = 128,
@@ -306,7 +339,8 @@ def dither_image(
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
     background: Literal['white', 'dark'] = 'white',
-    satoshi_mode: bool = False
+    satoshi_mode: bool = False,
+    glitch: float = 0.0
 ) -> Path:
     """
     Apply dithering to a portion of an image using Austrian flag red.
@@ -329,6 +363,7 @@ def dither_image(
               1.0 = full density, 0.1 = only 10% of pixels dithered.
         background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
         satoshi_mode: Enable dynamic threshold based on local brightness.
+        glitch: Glitch intensity (0.0 to 1.0). Enables row swapping, channel shifting, and repeated passes.
 
     Returns:
         Path to output file
@@ -409,10 +444,42 @@ def dither_image(
         # Only apply where dither_mask is True
         density_mask = np.where(dither_mask, density_mask, 0.0)
 
-    # Apply Floyd-Steinberg dithering
-    dithered_array = floyd_steinberg_dither(
-        img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
-    )
+    # Glitch Mode: Repeated error diffusion passes
+    # If glitch is active, we repeat the dithering process
+    # Passes: 1 (normal) to 4 (high glitch)
+    passes = 1
+    if glitch > 0.0:
+        passes = 1 + int(glitch * 3)
+
+    current_img_array = img_array.copy().astype(np.int16)
+
+    # Initialize random number generator
+    rng = np.random.default_rng(seed)
+
+    # Final dithered result
+    dithered_array = np.zeros((h, w), dtype=np.uint8)
+
+    for p in range(passes):
+        # Apply Floyd-Steinberg dithering
+        # For first pass, use original image
+        # For subsequent passes, use modified version of previous result
+
+        # We need a proper input for the dither function (int array)
+        input_for_pass = current_img_array.astype(int) if p == 0 else dithered_array.astype(int)
+
+        if p > 0:
+            # Add noise to corrupt the feedback loop
+            noise_amount = int(50 * glitch)
+            if noise_amount > 0:
+                noise = rng.integers(-noise_amount, noise_amount + 1, size=(h, w))
+                input_for_pass = np.clip(input_for_pass + noise, 0, 255)
+
+        # We need to vary the seed for each pass if randomizing, otherwise we get same patterns
+        pass_seed = seed + p if seed is not None else None
+
+        dithered_array = floyd_steinberg_dither(
+            input_for_pass, threshold, randomize, jitter, darkness_offset, pass_seed, density_mask, satoshi_mode
+        )
 
     # Upscale if needed
     if scale_factor > 1.0:
@@ -426,12 +493,32 @@ def dither_image(
             mask_img = mask_img.resize(original_size, Image.Resampling.NEAREST)
             dither_mask = np.array(mask_img) > 128
 
+    # Glitch Mode: Row Swapping
+    if glitch > 0.0:
+        # Swap rows on the final dithered bitmap
+        glitch_seed = seed if seed is not None else np.random.randint(0, 10000)
+        dithered_array = glitch_swap_rows(dithered_array, glitch, seed=glitch_seed)
+
     # Create RGB image with Austrian red for dithered pixels
     # Background color depends on mode: white or dark
     bg_color = DARK_BACKGROUND if background == 'dark' else (255, 255, 255)
     dithered_rgb = np.zeros((height, width, 3), dtype=np.uint8)
+
+    # Re-initialize RNG for channel shift
+    rng = np.random.default_rng(seed)
+
     for i in range(3):
-        dithered_rgb[:, :, i] = np.where(dithered_array == 0, AUSTRIAN_RED[i], bg_color[i])
+        channel_data = np.where(dithered_array == 0, AUSTRIAN_RED[i], bg_color[i])
+
+        # Glitch Mode: Channel Shifting
+        if glitch > 0.0:
+            # Shift amount proportional to width and glitch intensity
+            max_shift = int(width * glitch * 0.05)
+            if max_shift > 0:
+                shift = rng.integers(-max_shift, max_shift + 1)
+                channel_data = np.roll(channel_data, shift, axis=1)
+
+        dithered_rgb[:, :, i] = channel_data
 
     # Create result image by compositing
     result_array = np.array(base_img)
@@ -555,6 +642,12 @@ def dither_image(
     is_flag=True,
     help='Enable Satoshi Mode: Dynamic threshold based on local brightness.'
 )
+@click.option(
+    '--glitch',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    help='Glitch Mode intensity (0.0 to 1.0). Adds row swapping, channel shifting, and repeated passes.'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -571,7 +664,8 @@ def main(
     circle: tuple[str, ...],
     fade: Optional[float],
     background: Literal['white', 'dark'],
-    satoshi_mode: bool
+    satoshi_mode: bool,
+    glitch: float
 ) -> None:
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
@@ -598,6 +692,7 @@ def main(
     - --grayscale: Converts entire image to grayscale before applying dithering
     - --fade: Controls dithering density (0.1 = sparse/10%, 1.0 = full density)
     - --satoshi-mode: Adapts threshold per pixel based on local brightness
+    - --glitch: Adds glitch effects (row swapping, channel shift, repeated passes)
     """
     try:
         # Parse rectangle specifications
@@ -644,7 +739,8 @@ def main(
             circles=circles,
             fade=fade,
             background=background,
-            satoshi_mode=satoshi_mode
+            satoshi_mode=satoshi_mode,
+            glitch=glitch
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:

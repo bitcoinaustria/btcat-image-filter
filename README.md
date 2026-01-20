@@ -73,6 +73,21 @@ High jitter (100) creates more randomness and organic texture. The default jitte
 
 Dynamic thresholding adapts to local brightness, preserving more detail in bright and dark areas.
 
+### Example 6: Glitch Mode
+
+```bash
+./dither.sh --glitch=0.1 --grayscale test-image-800px.jpg
+```
+
+![Glitch Example](example-glitch.jpg)
+
+"Corrupt the Dither."
+
+Introduces controlled data degradation for cyberpunk aesthetics:
+- Swaps random rows
+- Shifts color channels (RGB offset)
+- Repeats error diffusion passes with feedback noise
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |
@@ -256,6 +271,18 @@ Enable dynamic thresholding that adapts per pixel based on local brightness.
 ```bash
 # Brighter areas get higher threshold -> fewer red pixels
 ./dither.sh --satoshi-mode image.jpg
+```
+
+#### Glitch Mode
+
+Introduce controlled digital corruption.
+
+```bash
+# Mild glitch (0.1): Subtle artifacts, slight color shift
+./dither.sh --glitch=0.1 image.jpg
+
+# Heavy glitch (0.5+): Strong channel shifting, row swapping, and noise
+./dither.sh --glitch=0.5 image.jpg
 ```
 
 ### Advanced Combinations
