@@ -174,7 +174,8 @@ def floyd_steinberg_dither(
     jitter: float = 15.0,
     threshold_offset: float = 0.0,
     seed: Optional[int] = None,
-    density_mask: Optional[npt.NDArray[np.float64]] = None
+    density_mask: Optional[npt.NDArray[np.float64]] = None,
+    satoshi_mode: bool = False
 ) -> npt.NDArray[np.uint8]:
     """
     Apply Floyd-Steinberg dithering algorithm with optional randomization.
@@ -191,6 +192,7 @@ def floyd_steinberg_dither(
         seed: Random seed for reproducible results.
         density_mask: Optional mask controlling dithering density (0.0 to 1.0).
                      Values < 1.0 probabilistically skip pixels for fade effects.
+        satoshi_mode: Enable dynamic threshold based on local brightness.
 
     Returns:
         Binary dithered array
@@ -218,8 +220,17 @@ def floyd_steinberg_dither(
     for y in range(height):
         for x in range(width):
             old_pixel = img[y, x]
+
+            # Calculate base threshold
+            base_threshold = float(threshold)
+            if satoshi_mode:
+                # Dynamic threshold based on image brightness (Satoshi Mode)
+                # Brighter areas get higher threshold -> fewer red pixels
+                original_pixel = float(image_array[y, x])
+                base_threshold += (original_pixel - 128.0) * 0.5
+
             # Apply randomized threshold to reduce regular patterns
-            adjusted_threshold = threshold + random_noise[y, x] + threshold_offset
+            adjusted_threshold = base_threshold + random_noise[y, x] + threshold_offset
 
             # Check density mask - probabilistically skip pixels for fade effect
             should_dither = True
@@ -294,7 +305,8 @@ def dither_image(
     rectangles: Optional[list[tuple[float, float, float, float]]] = None,
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
-    background: Literal['white', 'dark'] = 'white'
+    background: Literal['white', 'dark'] = 'white',
+    satoshi_mode: bool = False
 ) -> Path:
     """
     Apply dithering to a portion of an image using Austrian flag red.
@@ -316,6 +328,7 @@ def dither_image(
         fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
               1.0 = full density, 0.1 = only 10% of pixels dithered.
         background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
+        satoshi_mode: Enable dynamic threshold based on local brightness.
 
     Returns:
         Path to output file
@@ -398,7 +411,7 @@ def dither_image(
 
     # Apply Floyd-Steinberg dithering
     dithered_array = floyd_steinberg_dither(
-        img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask
+        img_array, threshold, randomize, jitter, darkness_offset, seed, density_mask, satoshi_mode
     )
 
     # Upscale if needed
@@ -537,6 +550,11 @@ def dither_image(
     show_default=True,
     help='Background color for dithered areas. "white" for white background, "dark" for dark gray (#222222).'
 )
+@click.option(
+    '--satoshi-mode',
+    is_flag=True,
+    help='Enable Satoshi Mode: Dynamic threshold based on local brightness.'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -552,7 +570,8 @@ def main(
     rect: tuple[str, ...],
     circle: tuple[str, ...],
     fade: Optional[float],
-    background: Literal['white', 'dark']
+    background: Literal['white', 'dark'],
+    satoshi_mode: bool
 ) -> None:
     """Apply monochrome dithering to a portion of an image using Austrian flag red.
 
@@ -578,6 +597,7 @@ def main(
     Options apply globally:
     - --grayscale: Converts entire image to grayscale before applying dithering
     - --fade: Controls dithering density (0.1 = sparse/10%, 1.0 = full density)
+    - --satoshi-mode: Adapts threshold per pixel based on local brightness
     """
     try:
         # Parse rectangle specifications
@@ -623,7 +643,8 @@ def main(
             rectangles=rectangles,
             circles=circles,
             fade=fade,
-            background=background
+            background=background,
+            satoshi_mode=satoshi_mode
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:
