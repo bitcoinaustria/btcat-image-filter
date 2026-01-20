@@ -71,6 +71,15 @@ uv run python main.py "$INPUT_IMG" \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-glitch-fade.jpg"
 
+# Example 8: Gradient Density
+echo "Generating example-gradient.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --circle=0.25,0.5,0.2 \
+    --rect=0.5,0,1,1 \
+    --gradient=0,1.0,0.1 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-gradient.jpg"
+
 # Fine-tuning: Default
 echo "Generating example-default.jpg..."
 uv run python main.py "$INPUT_IMG" \

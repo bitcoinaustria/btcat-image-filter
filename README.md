@@ -11,7 +11,8 @@ Image dithering/filter tool that applies effects to a portion of an image using 
 - **Bitcoin Austria brand red**: Uses #E3000F for dithered pixels
 - **Background modes**: Choose white (default) or dark (#222222) background for dithered areas
 - **Grayscale mode**: Convert entire image to grayscale before applying dithering effects
-- **Density control**: Adjust dithering density for sparse or fade effects
+- **Density control**: Uniform fade or angle-based gradient transitions
+- **Gradient effects**: Create smooth density transitions across the image with any angle (0-360°)
 - **Format preservation**: Maintains original image format (JPEG/PNG)
 - **Smart naming**: Automatic output naming with collision avoidance
 - **Zero-configuration**: Ready to run out of the box with UV
@@ -97,6 +98,24 @@ Introduces controlled data degradation for cyberpunk aesthetics:
 ![Glitch Fade Example](example-glitch-fade.jpg)
 
 Higher glitch intensity (0.2) combined with heavy 90% fade and low jitter creates an extremely sparse, ghostly corruption effect. The minimal pixel distribution lets the glitching breathe.
+
+### Example 8: Gradient Density
+
+```bash
+./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=0,1.0,0.1 test-image-800px.jpg
+```
+
+![Gradient Example](example-gradient.jpg)
+
+Gradient density transitions create smooth fade effects. This example combines a circle on the left with the right half dithered, using a horizontal gradient that goes from 100% density (left) to 10% density (right). The image gradually fades from solid dithering to sparse, creating a natural transition effect.
+
+The `--gradient` option uses `angle,start,end` format:
+- **0°**: Horizontal left→right
+- **90°**: Vertical top→bottom
+- **180°**: Horizontal right→left
+- **270°**: Vertical bottom→top
+
+Use any angle for diagonal or custom directions.
 
 ### Fine-tuning Options
 
@@ -273,6 +292,37 @@ Control the density of dithering across all dithered areas.
 ./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
 ```
 
+#### Gradient Density
+
+Create smooth density transitions across the image using angle-based gradients.
+
+Format: `--gradient=angle,start,end`
+- **Angle**: 0-360° (0=left→right, 90=top→bottom, 180=right→left, 270=bottom→top)
+- **Start**: Density at gradient start (0.0 to 1.0)
+- **End**: Density at gradient end (0.0 to 1.0)
+
+```bash
+# Horizontal gradient: sparse on left, dense on right
+./dither.sh --gradient=0,0.1,1.0 image.jpg
+
+# Vertical gradient: fade from top to bottom
+./dither.sh --gradient=90,0.0,1.0 image.jpg
+
+# Reverse horizontal: dense on left, sparse on right
+./dither.sh --gradient=180,1.0,0.2 image.jpg
+
+# Diagonal gradient (45 degrees)
+./dither.sh --gradient=45,0.0,1.0 image.jpg
+
+# Fade to white: image gradually vanishes
+./dither.sh --gradient=0,1.0,0.0 image.jpg
+
+# Combine with shapes: gradient only in specific areas
+./dither.sh --gradient=0,1.0,0.1 --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 image.jpg
+```
+
+**Note**: Gradient overrides `--fade` if both are specified. The gradient is computed based on pixel position in the image and applied only to dithered regions.
+
 #### Background Color
 
 Choose between white or dark background for dithered areas.
@@ -374,7 +424,10 @@ The tool generates output files with the format:
 2. **Grayscale conversion** (optional): If `--grayscale` is specified, converts the entire image to grayscale
 3. **Create dithering masks**: Generates boolean masks for rectangles and circles (combined with logical OR)
 4. **Dithering**: Applies Floyd-Steinberg error diffusion dithering with optional randomization
-5. **Density control** (optional): If `--fade` is specified, probabilistically skips pixels for sparse effects
+5. **Density control** (optional):
+   - If `--gradient` is specified, creates angle-based gradient density mask across entire image
+   - If `--fade` is specified (and no gradient), creates uniform density mask
+   - Density mask probabilistically skips pixels for sparse/fade effects
 6. **Colorization**: Renders dithered pixels in Bitcoin Austria red (#E3000F) on chosen background (white or dark #222222)
 7. **Compositing**: Applies dithered regions to the base image using the masks
 8. **Save**: Outputs the result in the same format as the input with smart naming
