@@ -4,31 +4,53 @@ Image dithering tool that applies monochrome dithering to a portion of an image 
 
 ## Features
 
-- **Flexible image splitting**: Vertical or horizontal cuts at any position
-- **Golden ratio default**: Splits images at the golden ratio (~38%/~62%) by default
+- **Multiple dithering regions**: Rectangles, circles, or traditional cut modes
+- **Combine shapes**: Mix multiple rectangles and circles in a single image
+- **Flexible positioning**: All coordinates accept any float value (not limited to 0-1)
 - **Randomized dithering**: Floyd-Steinberg with threshold randomization for organic, less regular patterns
 - **Austrian flag red**: Uses #ED2939 for dithered pixels
-- **Grayscale option**: Optionally convert the original (non-dithered) part to grayscale
+- **Grayscale mode**: Convert entire image to grayscale before applying dithering effects
+- **Density control**: Adjust dithering density for sparse or fade effects
 - **Format preservation**: Maintains original image format (JPEG/PNG)
 - **Smart naming**: Automatic output naming with collision avoidance
 - **Zero-configuration**: Ready to run out of the box with UV
 
-## Example
+## Examples
 
 ### Input Image
 ![Original Image](test-image-800px.jpg)
 
-### Command
+### Example 1: Basic Grayscale with Cut at 0.67
+
 ```bash
-./dither.sh --grayscale test-image-800px.jpg
+./dither.sh --pos=0.67 --grayscale test-image-800px.jpg
 ```
 
-### Output Image
-![Dithered Image](test-image-800px-dither.jpg)
+![Basic Example](example-basic.jpg)
 
-The left ~38% is converted to grayscale, and the right ~62% is dithered in Austrian flag red (#ED2939).
+The entire image is converted to grayscale, then the right 33% is dithered in Austrian flag red (#ED2939).
 
-### Configuration Examples
+### Example 2: Multiple Shapes with Grayscale
+
+```bash
+./dither.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 --circle=0.5,0.5,0.2 --grayscale test-image-800px.jpg
+```
+
+![Shapes Example](example-shapes.jpg)
+
+Creates two vertical strips on the edges plus a circle in the center, all on a grayscale background.
+
+### Example 3: Sparse Dithering with Fade Effect
+
+```bash
+./dither.sh --pos=0.5 --fade=0.1 test-image-800px.jpg
+```
+
+![Fade Example](example-fade.jpg)
+
+Dithers the right 50% of the image with only 10% pixel density, creating a sparse, subtle effect.
+
+### Fine-tuning Options
 
 | Option | Description | Example Output |
 |--------|-------------|----------------|
@@ -57,14 +79,53 @@ uv sync
 ### Basic Usage
 
 ```bash
-# Default: vertical cut at golden ratio
+# Default: vertical cut at golden ratio (~38%/~62%)
 ./dither.sh image.jpg
 
 # Works with PNG too
 ./dither.sh image.png
 ```
 
-### Cut Direction and Position
+### Dithering Modes
+
+#### Rectangle Mode
+
+Define rectangular regions for dithering. Coordinates are specified as `x1,y1,x2,y2` where `(x1,y1)` is the top-left corner and `(x2,y2)` is the bottom-right corner.
+
+```bash
+# Single rectangle: dither the right half
+./dither.sh --rect=0.5,0,1,1 image.jpg
+
+# Two vertical strips on the edges
+./dither.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 image.jpg
+
+# Top and bottom strips
+./dither.sh --rect=0,0,1,0.1 --rect=0,0.9,1,1 image.jpg
+```
+
+#### Circle Mode
+
+Define circular regions for dithering. Coordinates are specified as `x,y,radius` where `(x,y)` is the center.
+
+```bash
+# Circle in the center
+./dither.sh --circle=0.5,0.5,0.3 image.jpg
+
+# Multiple circles
+./dither.sh --circle=0.25,0.25,0.15 --circle=0.75,0.75,0.15 image.jpg
+```
+
+#### Mix Rectangles and Circles
+
+```bash
+# Top strip plus center circle
+./dither.sh --rect=0,0,1,0.1 --circle=0.5,0.5,0.2 image.jpg
+
+# Frame effect: strips on all edges plus center circle
+./dither.sh --rect=0,0,0.05,1 --rect=0.95,0,1,1 --rect=0,0,1,0.05 --rect=0,0.95,1,1 --circle=0.5,0.5,0.25 image.jpg
+```
+
+#### Traditional Cut Mode
 
 ```bash
 # Vertical cut (default): left part original, right part dithered
@@ -81,25 +142,44 @@ uv sync
 ./dither.sh --cut=horizontal --pos=0.4 image.jpg
 ```
 
-### Grayscale Option
+### Global Options
+
+#### Grayscale
+
+Converts the **entire image** to grayscale before applying dithering effects.
 
 ```bash
-# Convert the original (non-dithered) part to grayscale
+# Grayscale entire image, then dither
 ./dither.sh --grayscale image.jpg
 
-# Combine with other options
-./dither.sh --cut=horizontal --pos=0.5 --grayscale image.jpg
+# Combine with shapes
+./dither.sh --grayscale --circle=0.5,0.5,0.3 image.jpg
 ```
 
-### Dithering Threshold
+#### Fade/Density Control
+
+Control the density of dithering across all dithered areas.
+
+```bash
+# Sparse dithering: only 10% of pixels dithered
+./dither.sh --fade=0.1 image.jpg
+
+# 50% density for subtle effect
+./dither.sh --fade=0.5 --rect=0.5,0,1,1 image.jpg
+
+# Combine with grayscale
+./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
+```
+
+#### Dithering Threshold
 
 ```bash
 # Adjust the dithering threshold (0-255, default: 128)
-# Lower values = more black pixels, Higher values = more white pixels
+# Lower values = more red pixels, Higher values = more white pixels
 ./dither.sh --threshold 100 image.jpg
 ```
 
-### Randomization & Jitter
+#### Randomization & Jitter
 
 ```bash
 # Randomization is enabled by default. Control the amount with --jitter (default: 30.0)
@@ -109,9 +189,9 @@ uv sync
 ./dither.sh --no-randomize image.jpg
 ```
 
-### Point Size Scaling
+#### Point Size Scaling
 
-Make the dither pattern proportional to the image width. This ensures images of different resolutions have similar visual texture density.
+Make the dither pattern proportional to the image width.
 
 ```bash
 # Set a reference width (default: 1024).
@@ -119,9 +199,9 @@ Make the dither pattern proportional to the image width. This ensures images of 
 ./dither.sh --reference-width 800 image.jpg
 ```
 
-### Density / Darkness Control
+#### Darkness Control
 
-Adjust the density of the dithered output.
+Adjust the darkness of the dithered output.
 
 ```bash
 # Make the result darker (fewer white pixels)
@@ -131,14 +211,17 @@ Adjust the density of the dithered output.
 ./dither.sh --darkness -30 image.jpg
 ```
 
-### Advanced Examples
+### Advanced Combinations
 
 ```bash
-# Full customization
-./dither.sh --cut=vertical --pos=0.3 --threshold=120 --grayscale image.jpg
+# Grayscale + sparse dithering + custom shapes
+./dither.sh --grayscale --fade=0.2 --rect=0,0,0.2,1 --circle=0.6,0.5,0.3 image.jpg
 
-# 50/50 horizontal split with grayscale top
-./dither.sh --cut=horizontal --pos=0.5 --grayscale image.jpg
+# High jitter + darkness + circle
+./dither.sh --jitter=100 --darkness=50 --circle=0.5,0.5,0.4 image.jpg
+
+# Multiple rectangles with threshold adjustment
+./dither.sh --threshold=100 --rect=0,0,0.3,1 --rect=0.7,0,1,1 image.jpg
 ```
 
 ## Output
@@ -150,12 +233,13 @@ The tool generates output files with the format:
 ## How It Works
 
 1. **Load and prepare**: Reads the input image and converts to RGB if needed
-2. **Split the image**: Cuts the image vertically or horizontally at the specified position (default: golden ratio)
-3. **Grayscale conversion** (optional): Converts the original (non-dithered) part to grayscale
-4. **Dithering**: Applies Floyd-Steinberg error diffusion dithering to the dithered portion
-5. **Colorization**: Renders dithered pixels in Austrian flag red (#ED2939) on white background
-6. **Recombination**: Combines the original and dithered parts back together
-7. **Save**: Outputs the result in the same format as the input with smart naming
+2. **Grayscale conversion** (optional): If `--grayscale` is specified, converts the entire image to grayscale
+3. **Create dithering masks**: Generates boolean masks for rectangles and circles (combined with logical OR)
+4. **Dithering**: Applies Floyd-Steinberg error diffusion dithering with optional randomization
+5. **Density control** (optional): If `--fade` is specified, probabilistically skips pixels for sparse effects
+6. **Colorization**: Renders dithered pixels in Austrian flag red (#ED2939) on white background
+7. **Compositing**: Applies dithered regions to the base image using the masks
+8. **Save**: Outputs the result in the same format as the input with smart naming
 
 ## Requirements
 
