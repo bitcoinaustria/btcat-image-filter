@@ -74,7 +74,7 @@ class FileSelectionScreen(Screen):
 
     def on_list_view_selected(self, event: ListView.Selected):
         label = event.item.query_one(Label)
-        filename = str(label.renderable)
+        filename = str(label.render())
         if filename.startswith("No image files"):
             return
 

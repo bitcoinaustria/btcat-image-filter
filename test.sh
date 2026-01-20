@@ -7,6 +7,9 @@ uv sync --quiet
 echo "Running pyright..."
 uv run pyright main.py
 
+echo "Running unit tests..."
+uv run pytest
+
 echo "Running e2e tests..."
 echo ""
 
