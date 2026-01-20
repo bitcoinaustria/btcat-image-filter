@@ -1,6 +1,6 @@
 # btcat-img-dither
 
-Image dithering tool that applies monochrome dithering to a portion of an image using Austrian flag red.
+Image dithering tool that applies monochrome dithering to a portion of an image using Bitcoin Austria brand red (#E3000F).
 
 ## Features
 
@@ -8,7 +8,8 @@ Image dithering tool that applies monochrome dithering to a portion of an image 
 - **Combine shapes**: Mix multiple rectangles and circles in a single image
 - **Flexible positioning**: All coordinates accept any float value (not limited to 0-1)
 - **Randomized dithering**: Floyd-Steinberg with threshold randomization for organic, less regular patterns
-- **Austrian flag red**: Uses #ED2939 for dithered pixels
+- **Bitcoin Austria brand red**: Uses #E3000F for dithered pixels
+- **Background modes**: Choose white (default) or dark (#222222) background for dithered areas
 - **Grayscale mode**: Convert entire image to grayscale before applying dithering effects
 - **Density control**: Adjust dithering density for sparse or fade effects
 - **Format preservation**: Maintains original image format (JPEG/PNG)
@@ -28,7 +29,7 @@ Image dithering tool that applies monochrome dithering to a portion of an image 
 
 ![Basic Example](example-basic.jpg)
 
-The entire image is converted to grayscale, then the right 33% is dithered in Austrian flag red (#ED2939).
+The entire image is converted to grayscale, then the right 33% is dithered in Austrian flag red (#E3000F).
 
 ### Example 2: Multiple Shapes with Grayscale
 
@@ -40,15 +41,17 @@ The entire image is converted to grayscale, then the right 33% is dithered in Au
 
 Creates two vertical strips on the edges plus a circle in the center, all on a grayscale background.
 
-### Example 3: Sparse Dithering with Fade Effect
+### Example 3: Subtle Dithering with Dark Background
 
 ```bash
-./dither.sh --pos=0.5 --fade=0.1 test-image-800px.jpg
+./dither.sh --pos=0.5 --fade=0.4 --background=dark test-image-800px.jpg
 ```
 
 ![Fade Example](example-fade.jpg)
 
-Dithers the right 50% of the image with only 10% pixel density, creating a sparse, subtle effect.
+Dithers the right 50% of the image with 40% pixel density on a dark background (#222222), creating a subtle, translucent effect.
+
+**Note:** Very low fade values (below 0.2) can break the error diffusion algorithm and produce random noise instead of coherent dithering.
 
 ### Example 4: High Jitter for Organic Texture
 
@@ -181,6 +184,21 @@ Control the density of dithering across all dithered areas.
 ./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
 ```
 
+#### Background Color
+
+Choose between white or dark background for dithered areas.
+
+```bash
+# White background (default): red dots on white
+./dither.sh --background=white image.jpg
+
+# Dark background: red dots on dark gray (#222222)
+./dither.sh --background=dark image.jpg
+
+# Combine with fade for subtle dark effect
+./dither.sh --background=dark --fade=0.4 --pos=0.5 image.jpg
+```
+
 #### Dithering Threshold
 
 ```bash
@@ -247,7 +265,7 @@ The tool generates output files with the format:
 3. **Create dithering masks**: Generates boolean masks for rectangles and circles (combined with logical OR)
 4. **Dithering**: Applies Floyd-Steinberg error diffusion dithering with optional randomization
 5. **Density control** (optional): If `--fade` is specified, probabilistically skips pixels for sparse effects
-6. **Colorization**: Renders dithered pixels in Austrian flag red (#ED2939) on white background
+6. **Colorization**: Renders dithered pixels in Bitcoin Austria red (#E3000F) on chosen background (white or dark #222222)
 7. **Compositing**: Applies dithered regions to the base image using the masks
 8. **Save**: Outputs the result in the same format as the input with smart naming
 
