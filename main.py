@@ -290,8 +290,8 @@ def get_output_filename(input_path: Union[str, Path]) -> Path:
     return output_path
 
 
-def dither_image(
-    input_path: Union[str, Path],
+def apply_dither(
+    img: Image.Image,
     split_ratio: Optional[float] = None,
     cut_direction: Literal['vertical', 'horizontal'] = 'vertical',
     threshold: int = 128,
@@ -301,47 +301,18 @@ def dither_image(
     reference_width: int = 1024,
     darkness_offset: float = 0.0,
     seed: Optional[int] = None,
-    output_path: Optional[Union[str, Path]] = None,
     rectangles: Optional[list[tuple[float, float, float, float]]] = None,
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
     background: Literal['white', 'dark'] = 'white',
     satoshi_mode: bool = False
-) -> Path:
+) -> Image.Image:
     """
-    Apply dithering to a portion of an image using Austrian flag red.
-
-    Args:
-        input_path: Path to input image file
-        split_ratio: Position for the cut (0.0 to 1.0, default: golden ratio ~0.382)
-        cut_direction: 'vertical' or 'horizontal' (default: 'vertical')
-        threshold: Threshold for dithering (0-255, default: 128)
-        grayscale_original: Convert the original (non-dithered) part to grayscale (default: False)
-        randomize: Add random noise to threshold to reduce regular patterns (default: True)
-        jitter: Amount of random noise to add.
-        reference_width: Target width for scaling point size.
-        darkness_offset: Bias for darkness.
-        seed: Random seed for reproducible results.
-        output_path: Optional path for output file. If None, generated from input filename.
-        rectangles: List of rectangles [(x1, y1, x2, y2), ...]. Coordinates can be any float value.
-        circles: List of circles [(cx, cy, r), ...]. Coordinates can be any float value.
-        fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
-              1.0 = full density, 0.1 = only 10% of pixels dithered.
-        background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
-        satoshi_mode: Enable dynamic threshold based on local brightness.
-
-    Returns:
-        Path to output file
+    Apply dithering to a PIL Image.
     """
     if split_ratio is None:
         # Golden ratio split: original side is ~38%, dithered side is ~62%
         split_ratio = 1 / GOLDEN_RATIO
-
-    # Load image
-    try:
-        img = Image.open(input_path)
-    except Exception as e:
-        raise ValueError(f"Failed to open image: {e}")
 
     # Convert to RGB if needed
     if img.mode != 'RGB':
@@ -442,6 +413,75 @@ def dither_image(
             result_array[:, :, i] = np.where(dither_mask, dithered_rgb[:, :, i], result_array[:, :, i])
 
     result = Image.fromarray(result_array)
+    return result
+
+
+def dither_image(
+    input_path: Union[str, Path],
+    split_ratio: Optional[float] = None,
+    cut_direction: Literal['vertical', 'horizontal'] = 'vertical',
+    threshold: int = 128,
+    grayscale_original: bool = False,
+    randomize: bool = True,
+    jitter: float = 15.0,
+    reference_width: int = 1024,
+    darkness_offset: float = 0.0,
+    seed: Optional[int] = None,
+    output_path: Optional[Union[str, Path]] = None,
+    rectangles: Optional[list[tuple[float, float, float, float]]] = None,
+    circles: Optional[list[tuple[float, float, float]]] = None,
+    fade: Optional[float] = None,
+    background: Literal['white', 'dark'] = 'white',
+    satoshi_mode: bool = False
+) -> Path:
+    """
+    Apply dithering to a portion of an image using Austrian flag red.
+
+    Args:
+        input_path: Path to input image file
+        split_ratio: Position for the cut (0.0 to 1.0, default: golden ratio ~0.382)
+        cut_direction: 'vertical' or 'horizontal' (default: 'vertical')
+        threshold: Threshold for dithering (0-255, default: 128)
+        grayscale_original: Convert the original (non-dithered) part to grayscale (default: False)
+        randomize: Add random noise to threshold to reduce regular patterns (default: True)
+        jitter: Amount of random noise to add.
+        reference_width: Target width for scaling point size.
+        darkness_offset: Bias for darkness.
+        seed: Random seed for reproducible results.
+        output_path: Optional path for output file. If None, generated from input filename.
+        rectangles: List of rectangles [(x1, y1, x2, y2), ...]. Coordinates can be any float value.
+        circles: List of circles [(cx, cy, r), ...]. Coordinates can be any float value.
+        fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
+              1.0 = full density, 0.1 = only 10% of pixels dithered.
+        background: Background color for dithered areas. 'white' (default) or 'dark' (#222222).
+        satoshi_mode: Enable dynamic threshold based on local brightness.
+
+    Returns:
+        Path to output file
+    """
+    # Load image
+    try:
+        img = Image.open(input_path)
+    except Exception as e:
+        raise ValueError(f"Failed to open image: {e}")
+
+    result = apply_dither(
+        img,
+        split_ratio=split_ratio,
+        cut_direction=cut_direction,
+        threshold=threshold,
+        grayscale_original=grayscale_original,
+        randomize=randomize,
+        jitter=jitter,
+        reference_width=reference_width,
+        darkness_offset=darkness_offset,
+        seed=seed,
+        rectangles=rectangles,
+        circles=circles,
+        fade=fade,
+        background=background,
+        satoshi_mode=satoshi_mode
+    )
 
     # Determine final output path
     final_output_path: Path
