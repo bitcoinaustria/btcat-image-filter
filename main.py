@@ -429,9 +429,10 @@ def dither_image(
     # Create RGB image with Austrian red for dithered pixels
     # Background color depends on mode: white or dark
     bg_color = DARK_BACKGROUND if background == 'dark' else (255, 255, 255)
-    dithered_rgb = np.zeros((height, width, 3), dtype=np.uint8)
-    for i in range(3):
-        dithered_rgb[:, :, i] = np.where(dithered_array == 0, AUSTRIAN_RED[i], bg_color[i])
+    # Use broadcasting for efficient RGB construction
+    dithered_rgb = np.full((height, width, 3), bg_color, dtype=np.uint8)
+    mask = dithered_array == 0
+    dithered_rgb[mask] = AUSTRIAN_RED
 
     # Create result image by compositing
     result_array = np.array(base_img)
