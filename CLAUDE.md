@@ -98,6 +98,36 @@ Control dithering density across all dithered areas (0.0 to 1.0).
 ./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
 ```
 
+#### Gradient Density
+Create gradual density transitions across the image using angle-based gradients.
+
+Format: `--gradient=angle,start,end`
+- **Angle**: 0-360° (0=left→right, 90=top→bottom, 180=right→left, 270=bottom→top)
+- **Start**: Density at gradient start (0.0 to 1.0)
+- **End**: Density at gradient end (0.0 to 1.0)
+
+```bash
+# Horizontal gradient: sparse on left, dense on right
+./dither.sh --gradient=0,0.1,1.0 image.jpg
+
+# Vertical gradient: fade from top to bottom
+./dither.sh --gradient=90,0.0,1.0 image.jpg
+
+# Reverse horizontal: dense on left, sparse on right
+./dither.sh --gradient=180,1.0,0.2 image.jpg
+
+# Diagonal gradient (45 degrees)
+./dither.sh --gradient=45,0.0,1.0 image.jpg
+
+# Combine with shapes: gradient only in specific areas
+./dither.sh --gradient=0,0.1,1.0 --rect=0.3,0,0.7,1 image.jpg
+
+# Create fade-out effect: image gradually vanishes to white
+./dither.sh --gradient=0,1.0,0.0 image.jpg
+```
+
+**Note**: Gradient overrides `--fade` if both are specified. Gradient is computed based on pixel position in the image, then applied only to dithered areas defined by masks.
+
 ### Traditional Cut Mode
 For backward compatibility, cut mode still works:
 
@@ -127,7 +157,10 @@ The tool uses a mask-based architecture for maximum flexibility:
    - Multiple shapes are combined using logical OR
    - Cut mode creates a default rectangle if no shapes specified
 4. **Dithering**: Applies Floyd-Steinberg error diffusion dithering to the entire image
-5. **Density Control** (optional): If `--fade` is specified, probabilistically skips pixels for sparse effects
+5. **Density Control** (optional):
+   - If `--gradient` is specified, creates angle-based gradient density mask across entire image
+   - If `--fade` is specified (and no gradient), creates uniform density mask
+   - Density mask probabilistically skips pixels for sparse/fade effects
 6. **Colorization**: Renders dithered pixels in Austrian flag red (#ED2939) on white background
 7. **Compositing**: Applies dithered regions to base image using the masks
 8. **Output**: Saved as `[original-name]-dither.[ext]` (with auto-incrementing numbers to avoid overwrites)
@@ -138,11 +171,18 @@ The tool uses a mask-based architecture for maximum flexibility:
 
 #### Mask Creation Functions
 
-- **create_rectangle_mask()** (main.py:37) - Creates boolean mask for rectangular region. Takes `(width, height, x1, y1, x2, y2)` where coordinates are fractions that can be any value. Handles coordinate ordering and clipping to image bounds automatically.
+- **create_rectangle_mask()** (main.py:86) - Creates boolean mask for rectangular region. Takes `(width, height, x1, y1, x2, y2)` where coordinates are fractions that can be any value. Handles coordinate ordering and clipping to image bounds automatically.
 
-- **create_circle_mask()** (main.py:86) - Creates boolean mask for circular region. Takes `(width, height, center_x, center_y, radius)`. Uses Euclidean distance calculation with NumPy ogrid for efficiency.
+- **create_circle_mask()** (main.py:135) - Creates boolean mask for circular region. Takes `(width, height, center_x, center_y, radius)`. Uses Euclidean distance calculation with NumPy ogrid for efficiency.
 
-- **create_gradient_mask()** (main.py:125) - Creates float density mask for gradient fade effects. Currently used internally but could be exposed for gradient transitions in future versions.
+- **create_gradient_mask()** (main.py:174) - Legacy function for cut-mode gradient fade effects. Creates gradient from split line to edge.
+
+- **create_gradient_density_mask()** (main.py:216) - Creates angle-based gradient density mask for general gradient transitions. Takes `(width, height, angle, density_start, density_end)`:
+  - **Angle**: 0-360° determines gradient direction using trigonometric projection
+  - Projects each pixel position onto gradient direction vector
+  - Normalizes projection to [0, 1] range
+  - Maps to [density_start, density_end] for final density values
+  - Supports arbitrary angles for diagonal, circular, or custom gradient patterns
 
 #### Core Dithering Function
 
@@ -156,10 +196,11 @@ The tool uses a mask-based architecture for maximum flexibility:
 
 - **get_output_filename()** (main.py:245) - Generates output filenames with `-dither` suffix and automatic numbering to prevent overwrites. Preserves the original image format.
 
-- **dither_image()** (main.py:272) - Main processing pipeline. Key parameters:
+- **dither_image()** (main.py:928) - Main processing pipeline. Key parameters:
   - `rectangles`: List of tuples `[(x1, y1, x2, y2), ...]`
   - `circles`: List of tuples `[(cx, cy, r), ...]`
-  - `fade`: Density control (0.0 to 1.0)
+  - `fade`: Uniform density control (0.0 to 1.0)
+  - `gradient`: Tuple `(angle, density_start, density_end)` for angle-based gradient
   - `grayscale_original`: Convert entire image to grayscale first
   - `split_ratio`, `cut_direction`: For backward-compatible cut mode
 
@@ -197,12 +238,18 @@ Multiple shapes are combined using `np.logical_or()`, creating a unified boolean
 
 **Migration**: Changed from `grayscale_img = img.convert('L').convert('RGB')` applied to split regions, to applying grayscale to full image at load time.
 
-### 3. Uniform Density Control
-**Decision**: Make `--fade` apply uniformly to all dithered areas instead of gradient fade for cut mode only.
+### 3. Uniform Density Control vs Gradients
+**Decision**: Separate `--fade` (uniform) from `--gradient` (angle-based) for clear mental model.
 
-**Rationale**: Simpler mental model - fade controls "how much" dithering happens everywhere. Gradients can be added as separate feature later if needed.
+**Rationale**:
+- `--fade` provides simple uniform density control across all dithered areas
+- `--gradient` enables complex gradual transitions with full directional control
+- Gradient overrides fade when both specified
 
-**Implementation**: `density_mask` is created as uniform value across dithered regions, then passed to Floyd-Steinberg which probabilistically skips pixels.
+**Implementation**:
+- Uniform: `density_mask = np.full((h, w), fade)`
+- Gradient: `density_mask = create_gradient_density_mask(w, h, angle, start, end)`
+- Both masks passed to dithering algorithm which probabilistically skips pixels
 
 ### 4. Cut Mode as Special Case of Rectangle
 **Decision**: Implement cut mode by auto-generating rectangle specs instead of special logic.
@@ -229,6 +276,29 @@ if not rectangles and not circles:
 - Simpler API (no error handling needed)
 - Automatic clipping happens in mask creation
 
+### 6. Angle-Based Gradient System
+**Decision**: Use angle (0-360°) + projection instead of enum-based directions.
+
+**Benefits**:
+- Supports arbitrary gradient directions (diagonal, any angle)
+- Intuitive: 0°=horizontal, 90°=vertical, 45°=diagonal
+- Single API for all gradient types
+- Mathematical elegance: gradient = dot product of position with direction vector
+
+**Implementation**:
+```python
+# Convert angle to direction vector
+dx = np.cos(np.deg2rad(angle))
+dy = np.sin(np.deg2rad(angle))
+
+# Project each pixel position onto gradient direction
+projection = x_norm * dx + y_norm * dy
+
+# Normalize to [0, 1] and map to [density_start, density_end]
+```
+
+**Alternative Considered**: Enum-based directions ('horizontal', 'vertical', 'diagonal-nw', etc.) - rejected as too limiting and verbose for arbitrary angles.
+
 ## Dependencies
 
 Managed via UV in pyproject.toml:
@@ -250,6 +320,10 @@ Test with various modes:
 # Grayscale + fade
 ./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 test-image.jpg
 
+# Gradient transitions
+./dither.sh --gradient=0,0.1,1.0 test-image.jpg
+./dither.sh --gradient=90,0.0,1.0 --rect=0.3,0,0.7,1 test-image.jpg
+
 # Out-of-bounds coordinates
 ./dither.sh --rect=-0.1,0,0.1,1 test-image.jpg
 ```
@@ -263,8 +337,9 @@ Test with various modes:
 
 ## Future Enhancement Ideas
 
-- **Gradient transitions**: Expose `create_gradient_mask()` to CLI for smooth density transitions
 - **More shapes**: Ellipses, polygons, custom paths
 - **Shape operations**: Subtract, intersect, XOR for complex compositions
-- **Per-shape fade**: Allow different density values for different shapes
+- **Per-shape density**: Allow different gradient/fade values for different shapes
+- **Radial gradients**: Distance-based gradients from a center point
 - **Color variations**: Support multiple dithering colors or patterns
+- **Custom gradient curves**: Non-linear gradient mapping (ease-in, ease-out, etc.)

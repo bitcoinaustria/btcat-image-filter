@@ -213,6 +213,66 @@ def create_gradient_mask(
     return mask
 
 
+def create_gradient_density_mask(
+    width: int,
+    height: int,
+    angle: float,
+    density_start: float,
+    density_end: float
+) -> npt.NDArray[np.float64]:
+    """
+    Create a gradient density mask that transitions from one density to another.
+
+    Uses angle-based gradients where the gradient transitions across the image
+    based on the specified angle.
+
+    Args:
+        width: Image width in pixels
+        height: Image height in pixels
+        angle: Gradient angle in degrees (0-360)
+            - 0°: left to right
+            - 90°: top to bottom
+            - 180°: right to left
+            - 270°: bottom to top
+        density_start: Density at start (0.0 to 1.0)
+        density_end: Density at end (0.0 to 1.0)
+
+    Returns:
+        Float mask array with values transitioning from density_start to density_end
+    """
+    # Convert angle to radians
+    angle_rad = np.deg2rad(angle)
+
+    # Create directional vector (cos, sin)
+    # Note: In image coordinates, y increases downward
+    dx = np.cos(angle_rad)
+    dy = np.sin(angle_rad)
+
+    # Create coordinate grids (normalized to [0, 1])
+    y_coords, x_coords = np.ogrid[:height, :width]
+    x_norm = x_coords.astype(float) / max(width - 1, 1)
+    y_norm = y_coords.astype(float) / max(height - 1, 1)
+
+    # Project each pixel position onto the gradient direction
+    # This gives us a value that increases along the gradient direction
+    projection = x_norm * dx + y_norm * dy
+
+    # Normalize projection to [0, 1] range
+    # The projection range depends on the angle
+    proj_min = projection.min()
+    proj_max = projection.max()
+
+    if proj_max > proj_min:
+        projection_normalized = (projection - proj_min) / (proj_max - proj_min)
+    else:
+        projection_normalized = np.zeros_like(projection)
+
+    # Map to [density_start, density_end]
+    mask = density_start + (density_end - density_start) * projection_normalized
+
+    return mask
+
+
 def glitch_swap_rows(
     image_array: npt.NDArray[np.integer],
     intensity: float,
@@ -618,6 +678,7 @@ def apply_dither(
     rectangles: Optional[list[tuple[float, float, float, float]]] = None,
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
+    gradient: Optional[tuple[float, float, float]] = None,
     background: Literal['white', 'dark'] = 'white',
     pattern: DitherPattern = 'floyd-steinberg',
     satoshi_mode: bool = False,
@@ -707,9 +768,18 @@ def apply_dither(
             circle_mask = create_circle_mask(w, h, cx, cy, r)
             dither_mask = np.logical_or(dither_mask, circle_mask)
 
-    # Apply gradient fade if specified (applies to all dithered areas)
+    # Apply gradient or uniform fade if specified (applies to all dithered areas)
     density_mask: Optional[npt.NDArray[np.float64]] = None
-    if fade is not None:
+
+    # Gradient takes precedence over uniform fade
+    if gradient is not None:
+        # Unpack gradient tuple (angle, start, end)
+        angle, gradient_start, gradient_end = gradient
+        # Create gradient density mask across entire image
+        density_mask = create_gradient_density_mask(w, h, angle, gradient_start, gradient_end)
+        # Only apply where dither_mask is True
+        density_mask = np.where(dither_mask, density_mask, 0.0)
+    elif fade is not None:
         # Create a uniform density mask for fade effect
         density_mask = np.full((h, w), fade, dtype=np.float64)
         # Only apply where dither_mask is True
@@ -870,6 +940,7 @@ def dither_image(
     rectangles: Optional[list[tuple[float, float, float, float]]] = None,
     circles: Optional[list[tuple[float, float, float]]] = None,
     fade: Optional[float] = None,
+    gradient: Optional[tuple[float, float, float]] = None,
     background: Literal['white', 'dark'] = 'white',
     pattern: DitherPattern = 'floyd-steinberg',
     satoshi_mode: bool = False,
@@ -924,6 +995,7 @@ def dither_image(
         rectangles=rectangles,
         circles=circles,
         fade=fade,
+        gradient=gradient,
         background=background,
         pattern=pattern,
         satoshi_mode=satoshi_mode,
@@ -1039,6 +1111,11 @@ def dither_image(
     help='Dithering density (0.0 to 1.0). E.g., 0.1 = only 10%% of pixels dithered (sparse effect). Applies to all dithered areas.'
 )
 @click.option(
+    '--gradient',
+    default=None,
+    help='Gradient density: angle,start,end (e.g., "0,0.1,1.0"). Angle: 0-360° (0=left→right, 90=top→bottom, 180=right→left, 270=bottom→top). Start/End: density 0.0-1.0. Overrides --fade.'
+)
+@click.option(
     '--background',
     type=click.Choice(['white', 'dark'], case_sensitive=False),
     default='white',
@@ -1079,6 +1156,7 @@ def main(
     rect: tuple[str, ...],
     circle: tuple[str, ...],
     fade: Optional[float],
+    gradient: Optional[str],
     background: Literal['white', 'dark'],
     satoshi_mode: bool,
     brand: str,
@@ -1141,6 +1219,26 @@ def main(
                     click.secho(f"Error parsing circle '{c}': {e}", fg='red', err=True)
                     sys.exit(1)
 
+        # Parse gradient specification
+        gradient_tuple: Optional[tuple[float, float, float]] = None
+        if gradient:
+            try:
+                parts = [float(x.strip()) for x in gradient.split(',')]
+                if len(parts) != 3:
+                    raise ValueError(f"Gradient must have 3 values (angle,start,end), got {len(parts)}")
+                angle, grad_start, grad_end = parts[0], parts[1], parts[2]
+
+                # Validate ranges
+                if not (0.0 <= grad_start <= 1.0):
+                    raise ValueError(f"Gradient start must be between 0.0 and 1.0, got {grad_start}")
+                if not (0.0 <= grad_end <= 1.0):
+                    raise ValueError(f"Gradient end must be between 0.0 and 1.0, got {grad_end}")
+
+                gradient_tuple = (angle, grad_start, grad_end)
+            except ValueError as e:
+                click.secho(f"Error parsing gradient '{gradient}': {e}", fg='red', err=True)
+                sys.exit(1)
+
         output_path = dither_image(
             image,
             split_ratio=pos,
@@ -1156,6 +1254,7 @@ def main(
             rectangles=rectangles,
             circles=circles,
             fade=fade,
+            gradient=gradient_tuple,
             background=background,
             pattern=pattern,
             satoshi_mode=satoshi_mode,
