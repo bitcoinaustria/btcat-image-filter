@@ -307,7 +307,8 @@ def dither_image(
         output_path: Optional path for output file. If None, generated from input filename.
         rectangles: List of rectangles [(x1, y1, x2, y2), ...]. Coordinates can be any float value.
         circles: List of circles [(cx, cy, r), ...]. Coordinates can be any float value.
-        fade: Fade-out intensity for 'cut' mode (0.0 to 1.0). If set, creates gradient.
+        fade: Dithering density (0.0 to 1.0). Controls sparsity of dithering across all areas.
+              1.0 = full density, 0.1 = only 10% of pixels dithered.
 
     Returns:
         Path to output file
@@ -326,15 +327,16 @@ def dither_image(
     if img.mode != 'RGB':
         img = img.convert('RGB')
 
+    # Apply grayscale to entire image first if requested
+    if grayscale_original:
+        img = img.convert('L').convert('RGB')
+
     width, height = img.size
 
-    # Create the base for grayscale conversion if needed
-    if grayscale_original:
-        grayscale_img = img.convert('L').convert('RGB')
-    else:
-        grayscale_img = img.copy()
+    # Keep a copy of the base image for non-dithered areas
+    base_img = img.copy()
 
-    # Convert entire image to grayscale for dithering
+    # Convert to grayscale for dithering
     img_gray = img.convert('L')
 
     # Calculate scale factor based on total image width
@@ -352,43 +354,40 @@ def dither_image(
     img_array = np.array(img_gray)
 
     # Create mask and density mask based on mode
-    dither_mask: Optional[npt.NDArray[np.bool_]] = None
-    density_mask: Optional[npt.NDArray[np.float64]] = None
     h, w = img_array.shape
 
-    # Check if shapes (rectangles or circles) are specified
-    has_shapes = (rectangles and len(rectangles) > 0) or (circles and len(circles) > 0)
-
-    if has_shapes:
-        # Create combined mask from all shapes
-        dither_mask = np.zeros((h, w), dtype=bool)
-
-        # Add all rectangles
-        if rectangles:
-            for x1, y1, x2, y2 in rectangles:
-                rect_mask = create_rectangle_mask(w, h, x1, y1, x2, y2)
-                dither_mask = np.logical_or(dither_mask, rect_mask)
-
-        # Add all circles
-        if circles:
-            for cx, cy, r in circles:
-                circle_mask = create_circle_mask(w, h, cx, cy, r)
-                dither_mask = np.logical_or(dither_mask, circle_mask)
-
-    else:
-        # Fall back to cut mode
-        dither_mask = np.zeros((h, w), dtype=bool)
-
+    # If no shapes specified, create default rectangle for cut mode (backward compatibility)
+    if not rectangles and not circles:
+        rectangles = []
         if cut_direction == 'vertical':
-            split_pos = int(w * split_ratio)
-            dither_mask[:, split_pos:] = True
+            # Vertical cut: from split position to right edge
+            rectangles.append((split_ratio, 0.0, 1.0, 1.0))
         else:  # horizontal
-            split_pos = int(h * split_ratio)
-            dither_mask[split_pos:, :] = True
+            # Horizontal cut: from split position to bottom edge
+            rectangles.append((0.0, split_ratio, 1.0, 1.0))
 
-        # Add gradient fade if specified
-        if fade is not None:
-            density_mask = create_gradient_mask(w, h, split_ratio, cut_direction, fade)
+    # Create combined mask from all shapes
+    dither_mask = np.zeros((h, w), dtype=bool)
+
+    # Add all rectangles
+    if rectangles:
+        for x1, y1, x2, y2 in rectangles:
+            rect_mask = create_rectangle_mask(w, h, x1, y1, x2, y2)
+            dither_mask = np.logical_or(dither_mask, rect_mask)
+
+    # Add all circles
+    if circles:
+        for cx, cy, r in circles:
+            circle_mask = create_circle_mask(w, h, cx, cy, r)
+            dither_mask = np.logical_or(dither_mask, circle_mask)
+
+    # Apply gradient fade if specified (applies to all dithered areas)
+    density_mask: Optional[npt.NDArray[np.float64]] = None
+    if fade is not None:
+        # Create a uniform density mask for fade effect
+        density_mask = np.full((h, w), fade, dtype=np.float64)
+        # Only apply where dither_mask is True
+        density_mask = np.where(dither_mask, density_mask, 0.0)
 
     # Apply Floyd-Steinberg dithering
     dithered_array = floyd_steinberg_dither(
@@ -413,7 +412,7 @@ def dither_image(
         dithered_rgb[:, :, i] = np.where(dithered_array == 0, AUSTRIAN_RED[i], 255)
 
     # Create result image by compositing
-    result_array = np.array(grayscale_img)
+    result_array = np.array(base_img)
 
     # Apply dithering only where mask is True
     if dither_mask is not None:
@@ -520,7 +519,7 @@ def dither_image(
     '--fade',
     type=click.FloatRange(0.0, 1.0),
     default=None,
-    help='Cut mode: fade-out intensity (0.0 to 1.0). E.g., 0.1 = fade to 10%% density at edge'
+    help='Dithering density (0.0 to 1.0). E.g., 0.1 = only 10%% of pixels dithered (sparse effect). Applies to all dithered areas.'
 )
 def main(
     image: str,
@@ -546,15 +545,22 @@ def main(
     more organic, less regular patterns. Use --no-randomize for classic
     Floyd-Steinberg without randomization.
 
-    Supports multiple dithering modes:
+    Dithering modes:
 
-    - Cut mode (default): Traditional cut (vertical or horizontal)
+    - Default: Vertical cut at golden ratio (can be changed with --cut and --pos)
 
-    - Rectangle mode: Specify one or more rectangles with --rect=x1,y1,x2,y2
+    - Rectangles: Specify one or more with --rect=x1,y1,x2,y2
       Example: --rect=0,0,0.1,1 --rect=0.9,0,1,1 (left and right strips)
 
-    - Circle mode: Specify one or more circles with --circle=x,y,radius
+    - Circles: Specify one or more with --circle=x,y,radius
       Example: --circle=0.5,0.5,0.2 (centered circle)
+
+    - Mix: Combine rectangles and circles
+      Example: --rect=0,0,1,0.1 --circle=0.5,0.5,0.2
+
+    Options apply globally:
+    - --grayscale: Converts entire image to grayscale before applying dithering
+    - --fade: Controls dithering density (0.1 = sparse/10%, 1.0 = full density)
     """
     try:
         # Parse rectangle specifications
