@@ -122,7 +122,7 @@ Use any angle for diagonal or custom directions.
 ### Example 9: Gradient Density (Reversed)
 
 ```bash
-./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=180,1.0,0.1 test-image-800px.jpg
+./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=180,1.0,0.1 --grayscale test-image-800px.jpg
 ```
 
 ![Gradient Reverse Example](example-gradient-reverse.jpg)
@@ -132,7 +132,7 @@ Same composition as Example 8, but with the gradient reversed (180°). The gradi
 ### Example 10: Shaded Dithering with Quantization
 
 ```bash
-./dither.sh --shade="1,q=4" test-image-800px.jpg
+./dither.sh --shade="1,q=4" --grayscale test-image-800px.jpg
 ```
 
 ![Shaded Quantized Example](example-shade-quantized.jpg)
@@ -148,7 +148,7 @@ In this example, `q=4` restricts the red dots to just 4 distinct shades of inten
 ### Example 11: Shaded Dithering with Quantization and Glitch
 
 ```bash
-./dither.sh --shade="1,q=4" --glitch=0.1 test-image-800px.jpg
+./dither.sh --shade="1,q=4" --glitch=0.1 --grayscale test-image-800px.jpg
 ```
 
 ![Shaded Quantized Glitch Example](example-shade-quantized-glitch.jpg)
