@@ -41,6 +41,7 @@ EXAMPLES=(
     "example-brand-lightning.jpg"
     "example-brand-cypherpunk.jpg"
     "example-brand-rgb.jpg"
+    "example-shade-quantized.jpg"
 )
 
 # Compare each generated image with reference

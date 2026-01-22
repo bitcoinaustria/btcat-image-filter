@@ -683,7 +683,8 @@ def apply_dither(
     pattern: DitherPattern = 'floyd-steinberg',
     satoshi_mode: bool = False,
     brand: str = 'btcat',
-    glitch: float = 0.0
+    glitch: float = 0.0,
+    shade: str = "1"
 ) -> Image.Image:
     """
     Apply dithering to a PIL Image using brand colors and selected pattern.
@@ -901,8 +902,65 @@ def apply_dither(
     else:
         # Monochrome mode: use brand color
         brand_color = brand_config.get('color', (0,0,0))
+
+        # Parse shade parameter
+        shade_factor = 0.0
+        shade_quant: Optional[int] = None
+        if shade:
+            try:
+                parts = str(shade).split(',')
+                shade_factor = float(parts[0])
+                for part in parts[1:]:
+                    part = part.strip()
+                    if part.startswith('q='):
+                        shade_quant = int(part.split('=')[1])
+            except ValueError:
+                pass
+
+        # Calculate shading map if needed
+        t_map: Optional[npt.NDArray[np.float64]] = None
+        if shade_factor > 0.0:
+            # Normalize grayscale image to 0.0-1.0
+            t_map = img_array.astype(float) / 255.0
+
+            # Apply quantization if requested
+            if shade_quant is not None and shade_quant > 1:
+                t_map = np.round(t_map * (shade_quant - 1)) / (shade_quant - 1)
+
+            # Apply shade factor
+            t_map = t_map * shade_factor
+
+            # Upscale t_map to match original size if needed
+            if scale_factor > 1.0:
+                # Use PIL 'F' mode for floating point image resizing
+                t_map_img = Image.fromarray(t_map.astype(np.float32))
+                t_map_img = t_map_img.resize(original_size, Image.Resampling.NEAREST)
+                t_map = np.array(t_map_img)
+
+            # Apply glitch row swapping to t_map if enabled
+            if glitch > 0.0:
+                glitch_seed = seed if seed is not None else np.random.randint(0, 10000)
+                # t_map is float, glitch_swap_rows expects int but works with copy
+                # Cast to mimic glitch behavior or adapt function?
+                # glitch_swap_rows handles copy. Let's cast to object or specific type if needed
+                # Actually glitch_swap_rows uses .copy() and assignment. It should work for float arrays too
+                # provided the type hint doesn't crash runtime (it won't).
+                t_map = glitch_swap_rows(t_map, glitch, seed=glitch_seed) # type: ignore
+
         for i in range(3):
-            channel_data = np.where(dithered_array == 0, brand_color[i], bg_color[i])
+            if t_map is not None:
+                # Interpolate between brand color and background color based on t_map
+                # t_map = 0 -> Brand Color
+                # t_map = 1 -> Background Color
+                brand_c = float(brand_color[i])
+                bg_c = float(bg_color[i])
+
+                dot_colors = brand_c * (1.0 - t_map) + bg_c * t_map
+                dot_colors = np.clip(dot_colors, 0, 255).astype(np.uint8)
+
+                channel_data = np.where(dithered_array == 0, dot_colors, bg_color[i])
+            else:
+                channel_data = np.where(dithered_array == 0, brand_color[i], bg_color[i])
 
             # Glitch Mode: Channel Shifting (monochrome mode)
             if glitch > 0.0:
@@ -945,7 +1003,8 @@ def dither_image(
     pattern: DitherPattern = 'floyd-steinberg',
     satoshi_mode: bool = False,
     brand: str = 'btcat',
-    glitch: float = 0.0
+    glitch: float = 0.0,
+    shade: str = "1"
 ) -> Path:
     """
     Apply dithering to a portion of an image using brand colors.
@@ -971,6 +1030,8 @@ def dither_image(
         satoshi_mode: Enable dynamic threshold based on local brightness.
         brand: Brand palette to use ('btcat', 'lightning', 'cypherpunk', 'rgb').
         glitch: Glitch intensity (0.0 to 1.0). Enables row swapping, channel shifting, and repeated passes.
+        shade: Shade factor and quantization (e.g., "1", "0.5", "0.5,q=3"). Default "1".
+               Controls how the brand dots are shaded based on original grayscale value.
 
     Returns:
         Path to output file
@@ -1000,7 +1061,8 @@ def dither_image(
         pattern=pattern,
         satoshi_mode=satoshi_mode,
         brand=brand,
-        glitch=glitch
+        glitch=glitch,
+        shade=shade
     )
 
     # Determine final output path
@@ -1140,6 +1202,13 @@ def dither_image(
     default=0.0,
     help='Glitch Mode intensity (0.0 to 1.0). Adds row swapping, channel shifting, and repeated passes.'
 )
+@click.option(
+    '--shade',
+    type=str,
+    default="1",
+    show_default=True,
+    help='Shade factor and quantization (e.g. "1", "0.5", "0.5,q=3"). Controls intensity of dot shading based on grayscale value.'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -1160,7 +1229,8 @@ def main(
     background: Literal['white', 'dark'],
     satoshi_mode: bool,
     brand: str,
-    glitch: float
+    glitch: float,
+    shade: str
 ) -> None:
     """Apply monochrome dithering to a portion of an image using brand colors.
 
@@ -1259,7 +1329,8 @@ def main(
             pattern=pattern,
             satoshi_mode=satoshi_mode,
             brand=brand,
-            glitch=glitch
+            glitch=glitch,
+            shade=shade
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:
