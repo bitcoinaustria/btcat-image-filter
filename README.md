@@ -145,6 +145,16 @@ The `--shade` parameter allows customization:
 
 In this example, `q=4` restricts the red dots to just 4 distinct shades of intensity.
 
+### Example 11: Shaded Dithering with Quantization and Glitch
+
+```bash
+./dither.sh --shade="1,q=4" --glitch=0.1 test-image-800px.jpg
+```
+
+![Shaded Quantized Glitch Example](example-shade-quantized-glitch.jpg)
+
+Combines shaded dithering with 4-level quantization and a 10% glitch effect for a corrupt, lo-fi aesthetic.
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |

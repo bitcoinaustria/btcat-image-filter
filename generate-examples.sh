@@ -96,6 +96,14 @@ uv run python main.py "$INPUT_IMG" \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-shade-quantized.jpg"
 
+# Example 11: Shaded Dithering with Quantization and Glitch
+echo "Generating example-shade-quantized-glitch.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --shade="1,q=4" \
+    --glitch=0.1 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-shade-quantized-glitch.jpg"
+
 # Fine-tuning: Default
 echo "Generating example-default.jpg..."
 uv run python main.py "$INPUT_IMG" \
