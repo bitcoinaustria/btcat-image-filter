@@ -214,6 +214,9 @@ class DitheringScreen(Screen):
             yield Label("Satoshi Mode")
             yield Switch(value=False, id="satoshi_mode")
 
+            yield Label("Shade (e.g. 1, 0.5, 0.5,q=3)")
+            yield Input(value="1", id="shade")
+
             yield Label("")
             yield Button("Open External Viewer (o)", id="btn-open", variant="primary")
             yield Label("")
@@ -331,6 +334,9 @@ class DitheringScreen(Screen):
             seed_str = self.query_one("#seed", Input).value
             seed = int(seed_str) if seed_str.strip() else None
 
+            shade_val = self.query_one("#shade", Input).value
+            shade = str(shade_val) if shade_val else "1"
+
             # Run dithering
             result_img = apply_dither(
                 self.original_image,
@@ -349,6 +355,7 @@ class DitheringScreen(Screen):
                 pattern=pattern,
                 brand=brand,
                 glitch=glitch,
+                shade=shade,
                 seed=seed
             )
 

@@ -16,6 +16,8 @@ Image dithering/filter tool that applies effects to a portion of an image using 
 - **Format preservation**: Maintains original image format (JPEG/PNG)
 - **Smart naming**: Automatic output naming with collision avoidance
 - **Zero-configuration**: Ready to run out of the box with UV
+- **Shaded Dithering**: Brand dots are shaded proportionally to the underlying image darkness
+- **Interactive TUI**: Terminal UI to experiment with parameters in real-time
 
 ## Examples
 
@@ -127,6 +129,22 @@ Use any angle for diagonal or custom directions.
 
 Same composition as Example 8, but with the gradient reversed (180°). The gradient now goes from 100% density (right) to 10% density (left), creating the opposite fade direction. This demonstrates how changing the angle parameter reverses the gradient flow while keeping all other parameters identical.
 
+### Example 10: Shaded Dithering with Quantization
+
+```bash
+./dither.sh --shade="1,q=4" test-image-800px.jpg
+```
+
+![Shaded Quantized Example](example-shade-quantized.jpg)
+
+By default, dither dots are shaded proportionally to the darkness of the original image (darker area = darker dot). This creates a "many shaded reds" effect instead of solid flat color.
+
+The `--shade` parameter allows customization:
+- `factor`: Float value (default 1). `0` restores the old solid-color behavior.
+- `q=N`: Quantize the shading into N discrete levels.
+
+In this example, `q=4` restricts the red dots to just 4 distinct shades of intensity.
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |
@@ -161,6 +179,18 @@ uv sync
 
 # Works with PNG too
 ./dither.sh image.png
+```
+
+### Interactive TUI
+
+Launch the interactive Terminal User Interface to experiment with settings in real-time.
+
+```bash
+# Start TUI with an image
+uv run python tui.py image.jpg
+
+# Or just run TUI and select file from list
+uv run python tui.py
 ```
 
 ### Dithering Modes
@@ -407,6 +437,24 @@ Introduce controlled digital corruption.
 
 # Heavy glitch (0.5+): Strong channel shifting, row swapping, and noise
 ./dither.sh --glitch=0.5 image.jpg
+```
+
+#### Shaded Dithering
+
+Control how the brand dots are shaded based on the underlying grayscale image.
+
+```bash
+# Default behavior (factor=1): dots are darker in dark areas
+./dither.sh image.jpg
+
+# Disable shading (restore old solid-color dots)
+./dither.sh --shade=0 image.jpg
+
+# Half strength shading
+./dither.sh --shade=0.5 image.jpg
+
+# Quantized shading (restrict to 3 levels)
+./dither.sh --shade="1,q=3" image.jpg
 ```
 
 ### Advanced Combinations
