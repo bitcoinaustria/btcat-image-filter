@@ -11,7 +11,19 @@ def hal_dither(
 ) -> npt.NDArray[np.uint8]:
     """
     Apply 'Hal' dithering (tribute to Hal Finney).
-    Simulates PGP-era terminal with scanline effects and subtle noise.
+
+    This custom algorithm simulates a PGP-era terminal aesthetic with
+    scanline effects (sine wave based) and subtle digital noise.
+
+    Args:
+        image_array: Grayscale numpy array (2D).
+        threshold: Base threshold level (0-255).
+        threshold_offset: Bias added to threshold. Positive = darker output.
+        seed: Random seed for noise generation.
+        density_mask: Optional mask (0.0-1.0) for fade effects.
+
+    Returns:
+        Binary dithered array (uint8).
     """
     img = image_array.astype(float)
     height, width = img.shape

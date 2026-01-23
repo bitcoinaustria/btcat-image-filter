@@ -13,7 +13,22 @@ def _atkinson_jit(
     density_random: npt.NDArray[np.float64],
     use_mask: bool
 ) -> None:
-    """Core Atkinson loop optimized with Numba."""
+    """
+    Core Atkinson error diffusion loop optimized with Numba.
+
+    Atkinson dithering propagates only 3/4 of the quantization error to
+    6 neighboring pixels, preventing the "muddy" look of Floyd-Steinberg
+    in shadow areas and preserving more high-frequency detail.
+
+    Args:
+        img: Float array of the image to modify in-place.
+        random_noise: Pre-computed noise array for threshold randomization.
+        threshold: Base threshold value.
+        threshold_offset: Global offset to apply to the threshold.
+        density_mask: Array controlling pixel density (0.0 to 1.0).
+        density_random: Pre-computed random values for density checks.
+        use_mask: Boolean flag indicating if density_mask should be used.
+    """
     height, width = img.shape
 
     for y in range(height):
@@ -74,7 +89,24 @@ def atkinson_dither(
 ) -> npt.NDArray[np.uint8]:
     """
     Apply Atkinson dithering algorithm.
-    Propagates error to 6 neighbors with 1/8 weight.
+
+    This algorithm propagates error to 6 neighbors with 1/8 weight each.
+    It produces higher contrast and less "muddy" results than Floyd-Steinberg,
+    often favored for monochrome displays.
+
+    Args:
+        image_array: Grayscale numpy array (2D).
+        threshold: Base threshold for binary conversion (0-255).
+        randomize: If True, adds random noise to threshold.
+        jitter: Amount of random noise to add (±jitter). Default: 15.0.
+        threshold_offset: Bias added to threshold. Positive = darker output. Default: 0.0.
+        seed: Random seed for reproducible results.
+        density_mask: Optional mask (0.0-1.0) where values < 1.0 probabilistically
+                      skip pixels to create fade effects.
+        satoshi_mode: Unused (kept for API consistency).
+
+    Returns:
+        Binary dithered array (uint8) where 0 is black and 255 is white.
     """
     img = image_array.astype(float)
     height, width = img.shape

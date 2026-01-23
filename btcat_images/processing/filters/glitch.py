@@ -8,15 +8,18 @@ def glitch_swap_rows(
     seed: Optional[int] = None
 ) -> npt.NDArray[np.integer]:
     """
-    Randomly swap rows in the image array based on intensity.
+    Randomly swap rows in the image array to create a glitch effect.
+
+    This function simulates data corruption by vertically swapping lines of pixels.
+    The number of swaps is proportional to the image height and the intensity.
 
     Args:
-        image_array: Numpy array (2D or 3D)
-        intensity: Glitch intensity (0.0 to 1.0)
-        seed: Random seed
+        image_array: Numpy array (2D grayscale or 3D RGB).
+        intensity: Glitch intensity (0.0 to 1.0). 1.0 swaps up to 50% of rows.
+        seed: Random seed for reproducible glitches.
 
     Returns:
-        Modified array
+        Modified image array with swapped rows.
     """
     rng = np.random.default_rng(seed)
     height = image_array.shape[0]

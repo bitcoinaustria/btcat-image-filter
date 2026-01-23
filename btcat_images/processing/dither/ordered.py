@@ -11,7 +11,21 @@ def ordered_dither(
     seed: Optional[int] = None  # Unused but kept for interface consistency
 ) -> npt.NDArray[np.uint8]:
     """
-    Apply ordered dithering using a threshold matrix.
+    Apply ordered dithering using a threshold matrix (Bayer, Clustered Dot, etc.).
+
+    This algorithm compares each pixel against a value in a tiled threshold matrix.
+    It produces very structured, grid-like patterns.
+
+    Args:
+        image_array: Grayscale numpy array (2D).
+        threshold: Base threshold level (0-255). 128 is neutral.
+        matrix: 2D float array (values 0.0-1.0) representing the dither pattern.
+        threshold_offset: Bias added to threshold. Positive = darker output. Default: 0.0.
+        density_mask: Optional mask (0.0-1.0) for fade effects.
+        seed: Random seed (only used for density mask probabilistic fade).
+
+    Returns:
+        Binary dithered array (uint8).
     """
     height, width = image_array.shape
     mh, mw = matrix.shape

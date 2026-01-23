@@ -15,7 +15,23 @@ def _floyd_steinberg_jit(
     use_mask: bool,
     satoshi_mode: bool
 ) -> None:
-    """Core Floyd-Steinberg loop optimized with Numba."""
+    """
+    Core Floyd-Steinberg error diffusion loop optimized with Numba.
+
+    This function performs the pixel-by-pixel dithering and error propagation.
+    It is compiled with Numba for high performance.
+
+    Args:
+        img: Float array of the image to modify in-place.
+        original_img: Original integer image array (used for Satoshi mode).
+        random_noise: Pre-computed noise array for threshold randomization.
+        threshold: Base threshold value.
+        threshold_offset: Global offset to apply to the threshold.
+        density_mask: Array controlling pixel density (0.0 to 1.0).
+        density_random: Pre-computed random values for density checks.
+        use_mask: Boolean flag indicating if density_mask should be used.
+        satoshi_mode: Boolean flag to enable brightness-adaptive thresholding.
+    """
     height, width = img.shape
 
     for y in range(height):
@@ -79,18 +95,18 @@ def floyd_steinberg_dither(
     and create more organic-looking dithered results, preventing visual artifacts.
 
     Args:
-        image_array: Grayscale numpy array
-        threshold: Base threshold for binary conversion (0-255)
-        randomize: Add random noise to threshold to reduce artifacts (default: True)
-        jitter: Amount of random noise to add (±jitter). Default: 15.0
-        threshold_offset: Bias added to threshold. Positive = darker (more red). Default: 0.0
+        image_array: Grayscale numpy array (2D).
+        threshold: Base threshold for binary conversion (0-255).
+        randomize: If True, adds random noise to threshold to reduce artifacts.
+        jitter: Amount of random noise to add (±jitter). Default: 15.0.
+        threshold_offset: Bias added to threshold. Positive = darker output. Default: 0.0.
         seed: Random seed for reproducible results.
-        density_mask: Optional mask controlling dithering density (0.0 to 1.0).
-                     Values < 1.0 probabilistically skip pixels for fade effects.
-        satoshi_mode: Enable dynamic threshold based on local brightness.
+        density_mask: Optional mask (0.0-1.0) where values < 1.0 probabilistically
+                      skip pixels to create fade effects.
+        satoshi_mode: If True, enables dynamic thresholding based on local brightness.
 
     Returns:
-        Binary dithered array
+        Binary dithered array (uint8) where 0 is black and 255 is white.
     """
     # Make a copy to avoid modifying original
     img = image_array.astype(float)
