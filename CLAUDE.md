@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-`btcat-img-dither` is a Python-based image dithering tool that applies monochrome dithering using Austrian flag red (#ED2939). The tool supports advanced shape-based dithering with rectangles, circles, and traditional cut modes, using the Floyd-Steinberg algorithm with optional randomization for organic, natural-looking results.
+`btcat-img-dither` is a Python-based image dithering tool that applies monochrome dithering using Austrian flag red (#E3000F). The tool supports advanced shape-based dithering with rectangles, circles, and traditional cut modes, using the Floyd-Steinberg algorithm with optional randomization for organic, natural-looking results.
+
+More info is in ./README.md
 
 ## Project Structure
 
@@ -206,7 +208,7 @@ The tool uses a mask-based architecture for maximum flexibility:
 
 ### Constants
 
-- **AUSTRIAN_RED** = (237, 41, 57) - RGB values for Austrian flag red (#ED2939)
+- **AUSTRIAN_RED** = (227, 0, 15) - RGB values for Austrian flag red (#E3000F)
 - **GOLDEN_RATIO** = 1.618033988749895 - Used for calculating the default split position
 
 ### Coordinate System

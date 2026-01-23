@@ -15,7 +15,7 @@
 
 """
 Image dithering tool that applies monochrome dithering to a portion of an image.
-Uses Austrian flag red (#ED2939) and applies dithering to the right side after a golden ratio cut.
+Uses Austrian flag red (#E3000F) and applies dithering to the right side after a golden ratio cut.
 """
 
 import sys
