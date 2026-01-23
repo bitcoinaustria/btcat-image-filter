@@ -38,11 +38,11 @@ env/
 *.swo
 *~
 
-# Image files (output from dithering tool)
-*.png
-*.jpg
-*.jpeg
-*.webp
+# Image files (output from dithering tool) - ignore only in root
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
 
 # OS
 .DS_Store
