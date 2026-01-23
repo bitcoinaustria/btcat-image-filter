@@ -25,6 +25,7 @@ from PIL import Image
 import numpy as np
 import numpy.typing as npt
 from typing import Optional, Union, Tuple, Literal
+from numba import jit
 
 
 # Brand definitions
@@ -505,6 +506,65 @@ def hal_dither(
     return result
 
 
+@jit(nopython=True)
+def _floyd_steinberg_jit(
+    img: npt.NDArray[np.float64],
+    original_img: npt.NDArray[np.integer],
+    random_noise: npt.NDArray[np.float64],
+    threshold: float,
+    threshold_offset: float,
+    density_mask: npt.NDArray[np.float64],
+    density_random: npt.NDArray[np.float64],
+    use_mask: bool,
+    satoshi_mode: bool
+) -> None:
+    """Core Floyd-Steinberg loop optimized with Numba."""
+    height, width = img.shape
+
+    for y in range(height):
+        for x in range(width):
+            old_pixel = img[y, x]
+
+            # Calculate base threshold
+            base_threshold = threshold
+            if satoshi_mode:
+                # Dynamic threshold based on image brightness (Satoshi Mode)
+                # Brighter areas get higher threshold -> fewer red pixels
+                original_pixel = float(original_img[y, x])
+                base_threshold += (original_pixel - 128.0) * 0.5
+
+            # Apply randomized threshold
+            adjusted_threshold = base_threshold + random_noise[y, x] + threshold_offset
+
+            # Check density mask - probabilistically skip pixels for fade effect
+            if use_mask:
+                if density_mask[y, x] == 0.0:
+                    # Outside dithered region - preserve original pixel
+                    continue
+                elif density_random[y, x] > density_mask[y, x]:
+                    # Within dithered region but skipped for fade - force to white
+                    img[y, x] = 255.0
+                    continue  # Skip error diffusion for this pixel
+                else:
+                    new_pixel = 255.0 if old_pixel > adjusted_threshold else 0.0
+            else:
+                new_pixel = 255.0 if old_pixel > adjusted_threshold else 0.0
+
+            img[y, x] = new_pixel
+
+            error = old_pixel - new_pixel
+
+            # Distribute error to neighboring pixels (Floyd-Steinberg pattern)
+            if x + 1 < width:
+                img[y, x + 1] += error * 7 / 16
+            if y + 1 < height:
+                if x > 0:
+                    img[y + 1, x - 1] += error * 3 / 16
+                img[y + 1, x] += error * 5 / 16
+                if x + 1 < width:
+                    img[y + 1, x + 1] += error * 1 / 16
+
+
 def floyd_steinberg_dither(
     image_array: npt.NDArray[np.integer],
     threshold: int = 128,
@@ -551,53 +611,28 @@ def floyd_steinberg_dither(
         random_noise = np.zeros((height, width))
 
     # Generate random values for density mask if provided
-    density_random: Optional[npt.NDArray[np.float64]] = None
+    use_mask = False
+    # Use 2D dummy arrays to match type expected by JIT function
+    density_mask_arr = np.zeros((1, 1), dtype=float)
+    density_random_arr = np.zeros((1, 1), dtype=float)
+
     if density_mask is not None:
-        density_random = rng.uniform(0.0, 1.0, size=(height, width))
+        use_mask = True
+        density_mask_arr = density_mask
+        density_random_arr = rng.uniform(0.0, 1.0, size=(height, width))
 
-    for y in range(height):
-        for x in range(width):
-            old_pixel = img[y, x]
-
-            # Calculate base threshold
-            base_threshold = float(threshold)
-            if satoshi_mode:
-                # Dynamic threshold based on image brightness (Satoshi Mode)
-                # Brighter areas get higher threshold -> fewer red pixels
-                original_pixel = float(image_array[y, x])
-                base_threshold += (original_pixel - 128.0) * 0.5
-
-            # Apply randomized threshold to reduce regular patterns
-            adjusted_threshold = base_threshold + random_noise[y, x] + threshold_offset
-
-            # Check density mask - probabilistically skip pixels for fade effect
-            if density_mask is not None and density_random is not None:
-                if density_mask[y, x] == 0.0:
-                    # Outside dithered region - preserve original pixel, don't modify
-                    continue
-                elif density_random[y, x] > density_mask[y, x]:
-                    # Within dithered region but skipped for fade - force to white
-                    new_pixel = 255.0
-                    img[y, x] = new_pixel
-                    continue  # Skip error diffusion for this pixel
-                else:
-                    new_pixel = 255 if old_pixel > adjusted_threshold else 0
-            else:
-                new_pixel = 255 if old_pixel > adjusted_threshold else 0
-
-            img[y, x] = new_pixel
-
-            error = old_pixel - new_pixel
-
-            # Distribute error to neighboring pixels (Floyd-Steinberg pattern)
-            if x + 1 < width:
-                img[y, x + 1] += error * 7 / 16
-            if y + 1 < height:
-                if x > 0:
-                    img[y + 1, x - 1] += error * 3 / 16
-                img[y + 1, x] += error * 5 / 16
-                if x + 1 < width:
-                    img[y + 1, x + 1] += error * 1 / 16
+    # Call JIT-optimized core function
+    _floyd_steinberg_jit(
+        img,
+        image_array,
+        random_noise,
+        float(threshold),
+        threshold_offset,
+        density_mask_arr,
+        density_random_arr,
+        use_mask,
+        satoshi_mode
+    )
 
     return (img > 128).astype(np.uint8) * 255
 
