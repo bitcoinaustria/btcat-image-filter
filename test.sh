@@ -26,6 +26,7 @@ EXAMPLES=(
     "example-shapes.jpg"
     "example-fade.jpg"
     "example-jitter-high.jpg"
+    "example-satoshi.jpg"
     "example-glitch.jpg"
     "example-glitch-fade.jpg"
     "example-default.jpg"

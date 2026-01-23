@@ -8,10 +8,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 More info is in ./README.md
 
+**Note:** Always use `--grayscale` when generating example images unless specifically instructed otherwise. This ensures a consistent and high-quality aesthetic.
+
+**Note:** Always use `--grayscale` when generating example images unless specifically instructed otherwise. This ensures a consistent and high-quality aesthetic.
+
 ## Project Structure
 
-- **main.py** - Core Python module containing the dithering logic
+- **main.py** - Wrapper script for backward compatibility
 - **dither.sh** - Shell wrapper that ensures dependencies are installed and runs the tool
+- **btcat_images/** - Main package source code
+  - **cli.py** - Command-line interface
+  - **core/** - Core logic (pipeline, utils)
+  - **processing/** - Image processing algorithms (dither, filters, masks)
+  - **tui/** - Terminal User Interface
+  - **constants.py** - Global constants
 - **pyproject.toml** - UV project configuration with dependencies (Pillow, NumPy, Click)
 
 ## Development Setup
@@ -163,7 +173,7 @@ The tool uses a mask-based architecture for maximum flexibility:
    - If `--gradient` is specified, creates angle-based gradient density mask across entire image
    - If `--fade` is specified (and no gradient), creates uniform density mask
    - Density mask probabilistically skips pixels for sparse/fade effects
-6. **Colorization**: Renders dithered pixels in Austrian flag red (#ED2939) on white background
+6. **Colorization**: Renders dithered pixels in Austrian flag red (#E3000F) on white background
 7. **Compositing**: Applies dithered regions to base image using the masks
 8. **Output**: Saved as `[original-name]-dither.[ext]` (with auto-incrementing numbers to avoid overwrites)
 

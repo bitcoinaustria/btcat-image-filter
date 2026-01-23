@@ -47,7 +47,7 @@ Creates two wider vertical strips on the edges (20% width each) plus a circle in
 ### Example 3: Subtle Dithering with Dark Background
 
 ```bash
-./dither.sh --pos=0.5 --fade=0.4 --background=dark test-image-800px.jpg
+./dither.sh --pos=0.5 --fade=0.4 --background=dark --grayscale test-image-800px.jpg
 ```
 
 ![Fade Example](examples/example-fade.jpg)
@@ -69,8 +69,10 @@ High jitter (100) creates more randomness and organic texture. The default jitte
 ### Example 5: Satoshi Mode
 
 ```bash
-./dither.sh --circle=0.5,0.5,0.3 --satoshi-mode test-image-800px.jpg
+./dither.sh --circle=0.5,0.5,0.3 --satoshi-mode --grayscale examples/test-image-800px.jpg
 ```
+
+![Satoshi Example](examples/example-satoshi.jpg)
 
 “The network self-adjusts.”
 
@@ -104,7 +106,7 @@ Higher glitch intensity (0.2) combined with heavy 90% fade and low jitter create
 ### Example 8: Gradient Density
 
 ```bash
-./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=0,1.0,0.1 test-image-800px.jpg
+./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=0,1.0,0.1 --grayscale test-image-800px.jpg
 ```
 
 ![Gradient Example](examples/example-gradient.jpg)

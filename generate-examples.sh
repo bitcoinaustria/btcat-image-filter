@@ -41,6 +41,7 @@ uv run python main.py "$INPUT_IMG" \
     --pos=0.5 \
     --fade=0.4 \
     --background=dark \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-fade.jpg"
 
@@ -52,6 +53,15 @@ uv run python main.py "$INPUT_IMG" \
     --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-jitter-high.jpg"
+
+# Example 5: Satoshi Mode
+echo "Generating example-satoshi.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --circle=0.5,0.5,0.3 \
+    --satoshi-mode \
+    --grayscale \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-satoshi.jpg"
 
 # Example 6: Glitch Mode
 echo "Generating example-glitch.jpg..."
@@ -77,6 +87,7 @@ uv run python main.py "$INPUT_IMG" \
     --circle=0.25,0.5,0.2 \
     --rect=0.5,0,1,1 \
     --gradient=0,1.0,0.1 \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-gradient.jpg"
 
@@ -110,6 +121,7 @@ uv run python main.py "$INPUT_IMG" \
 # Fine-tuning: Default
 echo "Generating example-default.jpg..."
 uv run python main.py "$INPUT_IMG" \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-default.jpg"
 
@@ -117,6 +129,7 @@ uv run python main.py "$INPUT_IMG" \
 echo "Generating example-jitter.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --jitter=100 \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-jitter.jpg"
 
@@ -124,6 +137,7 @@ uv run python main.py "$INPUT_IMG" \
 echo "Generating example-scaled.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --reference-width=200 \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-scaled.jpg"
 
@@ -131,6 +145,7 @@ uv run python main.py "$INPUT_IMG" \
 echo "Generating example-dark.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --darkness=50 \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-dark.jpg"
 
@@ -138,24 +153,28 @@ uv run python main.py "$INPUT_IMG" \
 echo "Generating example-pattern-ordered.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --pattern=ordered \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-pattern-ordered.jpg"
 
 echo "Generating example-pattern-atkinson.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --pattern=atkinson \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-pattern-atkinson.jpg"
 
 echo "Generating example-pattern-clustered.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --pattern=clustered-dot \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-pattern-clustered.jpg"
 
 echo "Generating example-pattern-bitcoin.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --pattern=bitcoin \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-pattern-bitcoin.jpg"
 
@@ -170,12 +189,14 @@ uv run python main.py "$INPUT_IMG" \
 echo "Generating example-brand-btcat.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --brand=btcat \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-brand-btcat.jpg"
 
 echo "Generating example-brand-lightning.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --brand=lightning \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-brand-lightning.jpg"
 
@@ -190,6 +211,7 @@ echo "Generating example-brand-rgb.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --brand=rgb \
     --pattern=ordered \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-brand-rgb.jpg"
 
