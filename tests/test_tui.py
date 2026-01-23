@@ -5,11 +5,9 @@ from textual.app import App
 import sys
 from pathlib import Path
 
-# Add project root to path so we can import tui
+# Add project root to path so we can from btcat_images.tui import screens as tui
 sys.path.append(str(Path(__file__).parent.parent))
-
-import tui
-
+from btcat_images.tui import screens as tui
 class TestFileSelection:
     @pytest.fixture
     def screen(self):
