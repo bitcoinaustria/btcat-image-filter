@@ -295,15 +295,25 @@ def glitch_swap_rows(
     # Determine number of swaps based on intensity (max 50% of rows for 1.0)
     num_swaps = int(height * intensity * 0.5)
 
-    result = image_array.copy()
+    # Optimization: Use indices array to perform swaps instead of moving large image rows
+    indices = np.arange(height)
 
-    for _ in range(num_swaps):
-        y1 = rng.integers(0, height)
-        y2 = rng.integers(0, height)
-        # Swap rows
-        result[y1], result[y2] = result[y2].copy(), result[y1].copy()
+    if num_swaps > 0:
+        # Generate all random indices at once
+        # We need 2 * num_swaps integers
+        # Interleave to match the RNG consumption order of the original loop
+        # Loop was: y1 = rng(), y2 = rng()
+        random_indices = rng.integers(0, height, size=2 * num_swaps)
+        y1s = random_indices[0::2]
+        y2s = random_indices[1::2]
 
-    return result
+        # Perform swaps on indices array
+        for i in range(num_swaps):
+            y1, y2 = y1s[i], y2s[i]
+            indices[y1], indices[y2] = indices[y2], indices[y1]
+
+    # Apply the shuffled indices to the image using advanced indexing
+    return image_array[indices]
 
 
 def ordered_dither(
