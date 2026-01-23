@@ -86,6 +86,7 @@ uv run python main.py "$INPUT_IMG" \
     --circle=0.25,0.5,0.2 \
     --rect=0.5,0,1,1 \
     --gradient=180,1.0,0.1 \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-gradient-reverse.jpg"
 
@@ -93,6 +94,7 @@ uv run python main.py "$INPUT_IMG" \
 echo "Generating example-shade-quantized.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --shade="1,q=4" \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-shade-quantized.jpg"
 
@@ -101,6 +103,7 @@ echo "Generating example-shade-quantized-glitch.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --shade="1,q=4" \
     --glitch=0.1 \
+    --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-shade-quantized-glitch.jpg"
 
