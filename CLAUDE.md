@@ -44,8 +44,8 @@ UV will automatically create a virtual environment and install all required depe
 ### Basic Usage
 ```bash
 # Default: vertical cut at golden ratio
-./dither.sh image.jpg
-./dither.sh image.png
+./effect.sh image.jpg
+./effect.sh image.png
 ```
 
 ### Shape-Based Dithering
@@ -55,13 +55,13 @@ Define one or more rectangular regions. Coordinates: `x1,y1,x2,y2` (fractions, c
 
 ```bash
 # Single rectangle: dither right half
-./dither.sh --rect=0.5,0,1,1 image.jpg
+./effect.sh --rect=0.5,0,1,1 image.jpg
 
 # Two vertical strips on edges
-./dither.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 image.jpg
+./effect.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 image.jpg
 
 # Top and bottom strips
-./dither.sh --rect=0,0,1,0.1 --rect=0,0.9,1,1 image.jpg
+./effect.sh --rect=0,0,1,0.1 --rect=0,0.9,1,1 image.jpg
 ```
 
 #### Circle Mode
@@ -69,19 +69,19 @@ Define one or more circular regions. Coordinates: `x,y,radius` (fractions).
 
 ```bash
 # Circle in center
-./dither.sh --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --circle=0.5,0.5,0.3 image.jpg
 
 # Multiple circles
-./dither.sh --circle=0.25,0.25,0.15 --circle=0.75,0.75,0.15 image.jpg
+./effect.sh --circle=0.25,0.25,0.15 --circle=0.75,0.75,0.15 image.jpg
 ```
 
 #### Mix Rectangles and Circles
 ```bash
 # Top strip + center circle
-./dither.sh --rect=0,0,1,0.1 --circle=0.5,0.5,0.2 image.jpg
+./effect.sh --rect=0,0,1,0.1 --circle=0.5,0.5,0.2 image.jpg
 
 # Frame effect with center circle
-./dither.sh --rect=0,0,0.05,1 --rect=0.95,0,1,1 --rect=0,0,1,0.05 --rect=0,0.95,1,1 --circle=0.5,0.5,0.25 image.jpg
+./effect.sh --rect=0,0,0.05,1 --rect=0.95,0,1,1 --rect=0,0,1,0.05 --rect=0,0.95,1,1 --circle=0.5,0.5,0.25 image.jpg
 ```
 
 ### Global Options
@@ -90,8 +90,8 @@ Define one or more circular regions. Coordinates: `x,y,radius` (fractions).
 Converts the **entire image** to grayscale before applying dithering.
 
 ```bash
-./dither.sh --grayscale image.jpg
-./dither.sh --grayscale --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --grayscale image.jpg
+./effect.sh --grayscale --circle=0.5,0.5,0.3 image.jpg
 ```
 
 **Important**: Grayscale applies to the full image first, then dithering is layered on top. This differs from the original behavior where grayscale only affected non-dithered areas.
@@ -101,13 +101,13 @@ Control dithering density across all dithered areas (0.0 to 1.0).
 
 ```bash
 # Sparse: only 10% of pixels dithered
-./dither.sh --fade=0.1 image.jpg
+./effect.sh --fade=0.1 image.jpg
 
 # 50% density for subtle effect
-./dither.sh --fade=0.5 --rect=0.5,0,1,1 image.jpg
+./effect.sh --fade=0.5 --rect=0.5,0,1,1 image.jpg
 
 # Combine with grayscale
-./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
+./effect.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
 ```
 
 #### Gradient Density
@@ -120,22 +120,22 @@ Format: `--gradient=angle,start,end`
 
 ```bash
 # Horizontal gradient: sparse on left, dense on right
-./dither.sh --gradient=0,0.1,1.0 image.jpg
+./effect.sh --gradient=0,0.1,1.0 image.jpg
 
 # Vertical gradient: fade from top to bottom
-./dither.sh --gradient=90,0.0,1.0 image.jpg
+./effect.sh --gradient=90,0.0,1.0 image.jpg
 
 # Reverse horizontal: dense on left, sparse on right
-./dither.sh --gradient=180,1.0,0.2 image.jpg
+./effect.sh --gradient=180,1.0,0.2 image.jpg
 
 # Diagonal gradient (45 degrees)
-./dither.sh --gradient=45,0.0,1.0 image.jpg
+./effect.sh --gradient=45,0.0,1.0 image.jpg
 
 # Combine with shapes: gradient only in specific areas
-./dither.sh --gradient=0,0.1,1.0 --rect=0.3,0,0.7,1 image.jpg
+./effect.sh --gradient=0,0.1,1.0 --rect=0.3,0,0.7,1 image.jpg
 
 # Create fade-out effect: image gradually vanishes to white
-./dither.sh --gradient=0,1.0,0.0 image.jpg
+./effect.sh --gradient=0,1.0,0.0 image.jpg
 ```
 
 **Note**: Gradient overrides `--fade` if both are specified. Gradient is computed based on pixel position in the image, then applied only to dithered areas defined by masks.
@@ -145,10 +145,10 @@ For backward compatibility, cut mode still works:
 
 ```bash
 # Vertical cut at golden ratio
-./dither.sh --cut=vertical image.jpg
+./effect.sh --cut=vertical image.jpg
 
 # Horizontal cut at custom position
-./dither.sh --cut=horizontal --pos=0.5 image.jpg
+./effect.sh --cut=horizontal --pos=0.5 image.jpg
 ```
 
 **Note**: Cut mode is now internally implemented as a rectangle.
@@ -324,20 +324,20 @@ Test with various modes:
 
 ```bash
 # Basic functionality
-./dither.sh test-image.jpg
+./effect.sh test-image.jpg
 
 # Multiple shapes
-./dither.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 --circle=0.5,0.5,0.2 test-image.jpg
+./effect.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 --circle=0.5,0.5,0.2 test-image.jpg
 
 # Grayscale + fade
-./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 test-image.jpg
+./effect.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 test-image.jpg
 
 # Gradient transitions
-./dither.sh --gradient=0,0.1,1.0 test-image.jpg
-./dither.sh --gradient=90,0.0,1.0 --rect=0.3,0,0.7,1 test-image.jpg
+./effect.sh --gradient=0,0.1,1.0 test-image.jpg
+./effect.sh --gradient=90,0.0,1.0 --rect=0.3,0,0.7,1 test-image.jpg
 
 # Out-of-bounds coordinates
-./dither.sh --rect=-0.1,0,0.1,1 test-image.jpg
+./effect.sh --rect=-0.1,0,0.1,1 test-image.jpg
 ```
 
 ## Output Behavior

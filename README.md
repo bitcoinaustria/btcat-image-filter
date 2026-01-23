@@ -27,7 +27,7 @@ Image dithering/filter tool that applies effects to a portion of an image using 
 ### Example 1: Basic Grayscale with Cut at 0.67
 
 ```bash
-./dither.sh --pos=0.67 --grayscale test-image-800px.jpg
+./effect.sh --pos=0.67 --grayscale test-image-800px.jpg
 ```
 
 ![Basic Example](examples/example-basic.jpg)
@@ -37,7 +37,7 @@ The entire image is converted to grayscale, then the right 33% is dithered in Au
 ### Example 2: Multiple Shapes with Grayscale
 
 ```bash
-./dither.sh --rect=0,0,0.2,1 --rect=0.8,0,1,1 --circle=0.5,0.5,0.2 --jitter=33 --grayscale test-image-800px.jpg
+./effect.sh --rect=0,0,0.2,1 --rect=0.8,0,1,1 --circle=0.5,0.5,0.2 --jitter=33 --grayscale test-image-800px.jpg
 ```
 
 ![Shapes Example](examples/example-shapes.jpg)
@@ -47,7 +47,7 @@ Creates two wider vertical strips on the edges (20% width each) plus a circle in
 ### Example 3: Subtle Dithering with Dark Background
 
 ```bash
-./dither.sh --pos=0.5 --fade=0.4 --background=dark --grayscale test-image-800px.jpg
+./effect.sh --pos=0.5 --fade=0.4 --background=dark --grayscale test-image-800px.jpg
 ```
 
 ![Fade Example](examples/example-fade.jpg)
@@ -59,7 +59,7 @@ Dithers the right 50% of the image with 40% pixel density on a dark background (
 ### Example 4: High Jitter for Organic Texture
 
 ```bash
-./dither.sh --circle=0.5,0.5,0.35 --jitter=100 --grayscale test-image-800px.jpg
+./effect.sh --circle=0.5,0.5,0.35 --jitter=100 --grayscale test-image-800px.jpg
 ```
 
 ![Jitter Example](examples/example-jitter-high.jpg)
@@ -69,7 +69,7 @@ High jitter (100) creates more randomness and organic texture. The default jitte
 ### Example 5: Satoshi Mode
 
 ```bash
-./dither.sh --circle=0.5,0.5,0.3 --satoshi-mode --grayscale examples/test-image-800px.jpg
+./effect.sh --circle=0.5,0.5,0.3 --satoshi-mode --grayscale examples/test-image-800px.jpg
 ```
 
 ![Satoshi Example](examples/example-satoshi.jpg)
@@ -81,7 +81,7 @@ Dynamic thresholding adapts to local brightness, preserving more detail in brigh
 ### Example 6: Glitch Mode
 
 ```bash
-./dither.sh --glitch=0.1 --grayscale test-image-800px.jpg
+./effect.sh --glitch=0.1 --grayscale test-image-800px.jpg
 ```
 
 ![Glitch Example](examples/example-glitch.jpg)
@@ -96,7 +96,7 @@ Introduces controlled data degradation for cyberpunk aesthetics:
 ### Example 7: Glitch Mode with Fade
 
 ```bash
-./dither.sh --glitch=0.2 --grayscale --fade=0.9 --jitter=10 test-image-800px.jpg
+./effect.sh --glitch=0.2 --grayscale --fade=0.9 --jitter=10 test-image-800px.jpg
 ```
 
 ![Glitch Fade Example](examples/example-glitch-fade.jpg)
@@ -106,7 +106,7 @@ Higher glitch intensity (0.2) combined with heavy 90% fade and low jitter create
 ### Example 8: Gradient Density
 
 ```bash
-./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=0,1.0,0.1 --grayscale test-image-800px.jpg
+./effect.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=0,1.0,0.1 --grayscale test-image-800px.jpg
 ```
 
 ![Gradient Example](examples/example-gradient.jpg)
@@ -124,7 +124,7 @@ Use any angle for diagonal or custom directions.
 ### Example 9: Gradient Density (Reversed)
 
 ```bash
-./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=180,1.0,0.1 --grayscale test-image-800px.jpg
+./effect.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=180,1.0,0.1 --grayscale test-image-800px.jpg
 ```
 
 ![Gradient Reverse Example](examples/example-gradient-reverse.jpg)
@@ -134,7 +134,7 @@ Same composition as Example 8, but with the gradient reversed (180°). The gradi
 ### Example 10: Shaded Dithering with Quantization
 
 ```bash
-./dither.sh --shade="1,q=4" --grayscale test-image-800px.jpg
+./effect.sh --shade="1,q=4" --grayscale test-image-800px.jpg
 ```
 
 ![Shaded Quantized Example](examples/example-shade-quantized.jpg)
@@ -150,7 +150,7 @@ In this example, `q=4` restricts the red dots to just 4 distinct shades of inten
 ### Example 11: Shaded Dithering with Quantization and Glitch
 
 ```bash
-./dither.sh --shade="1,q=4" --glitch=0.1 --grayscale test-image-800px.jpg
+./effect.sh --shade="1,q=4" --glitch=0.1 --grayscale test-image-800px.jpg
 ```
 
 ![Shaded Quantized Glitch Example](examples/example-shade-quantized-glitch.jpg)
@@ -187,10 +187,10 @@ uv sync
 
 ```bash
 # Default: vertical cut at golden ratio (~38%/~62%)
-./dither.sh image.jpg
+./effect.sh image.jpg
 
 # Works with PNG too
-./dither.sh image.png
+./effect.sh image.png
 ```
 
 ### Interactive TUI
@@ -213,13 +213,13 @@ Define rectangular regions for dithering. Coordinates are specified as `x1,y1,x2
 
 ```bash
 # Single rectangle: dither the right half
-./dither.sh --rect=0.5,0,1,1 image.jpg
+./effect.sh --rect=0.5,0,1,1 image.jpg
 
 # Two vertical strips on the edges
-./dither.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 image.jpg
+./effect.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 image.jpg
 
 # Top and bottom strips
-./dither.sh --rect=0,0,1,0.1 --rect=0,0.9,1,1 image.jpg
+./effect.sh --rect=0,0,1,0.1 --rect=0,0.9,1,1 image.jpg
 ```
 
 #### Circle Mode
@@ -228,37 +228,37 @@ Define circular regions for dithering. Coordinates are specified as `x,y,radius`
 
 ```bash
 # Circle in the center
-./dither.sh --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --circle=0.5,0.5,0.3 image.jpg
 
 # Multiple circles
-./dither.sh --circle=0.25,0.25,0.15 --circle=0.75,0.75,0.15 image.jpg
+./effect.sh --circle=0.25,0.25,0.15 --circle=0.75,0.75,0.15 image.jpg
 ```
 
 #### Mix Rectangles and Circles
 
 ```bash
 # Top strip plus center circle
-./dither.sh --rect=0,0,1,0.1 --circle=0.5,0.5,0.2 image.jpg
+./effect.sh --rect=0,0,1,0.1 --circle=0.5,0.5,0.2 image.jpg
 
 # Frame effect: strips on all edges plus center circle
-./dither.sh --rect=0,0,0.05,1 --rect=0.95,0,1,1 --rect=0,0,1,0.05 --rect=0,0.95,1,1 --circle=0.5,0.5,0.25 image.jpg
+./effect.sh --rect=0,0,0.05,1 --rect=0.95,0,1,1 --rect=0,0,1,0.05 --rect=0,0.95,1,1 --circle=0.5,0.5,0.25 image.jpg
 ```
 
 #### Traditional Cut Mode
 
 ```bash
 # Vertical cut (default): left part original, right part dithered
-./dither.sh --cut=vertical image.jpg
+./effect.sh --cut=vertical image.jpg
 
 # Horizontal cut: top part original, bottom part dithered
-./dither.sh --cut=horizontal image.jpg
+./effect.sh --cut=horizontal image.jpg
 
 # Custom position (0.0 to 1.0)
 # For vertical: --pos=0.4 means left 40% original, right 60% dithered
-./dither.sh --cut=vertical --pos=0.4 image.jpg
+./effect.sh --cut=vertical --pos=0.4 image.jpg
 
 # For horizontal: --pos=0.4 means top 40% original, bottom 60% dithered
-./dither.sh --cut=horizontal --pos=0.4 image.jpg
+./effect.sh --cut=horizontal --pos=0.4 image.jpg
 ```
 
 ### Dithering Patterns
@@ -276,13 +276,13 @@ Choose different dithering algorithms with `--pattern`.
 
 ```bash
 # Ordered Bayer matrix
-./dither.sh --pattern=ordered image.jpg
+./effect.sh --pattern=ordered image.jpg
 
 # Vintage Atkinson style
-./dither.sh --pattern=atkinson image.jpg
+./effect.sh --pattern=atkinson image.jpg
 
 # Hal Finney tribute (scanlines + noise)
-./dither.sh --pattern=hal --grayscale image.jpg
+./effect.sh --pattern=hal --grayscale image.jpg
 ```
 
 ### Branding
@@ -298,19 +298,19 @@ Choose different color palettes with `--brand` to match your project's identity.
 
 ```bash
 # Bitcoin Austria red (default)
-./dither.sh --brand=btcat image.jpg
+./effect.sh --brand=btcat image.jpg
 
 # Lightning Network orange
-./dither.sh --brand=lightning --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --brand=lightning --circle=0.5,0.5,0.3 image.jpg
 
 # Cypherpunk/Matrix green
-./dither.sh --brand=cypherpunk --grayscale image.jpg
+./effect.sh --brand=cypherpunk --grayscale image.jpg
 
 # RGB mode: separate dithering for R, G, B channels
-./dither.sh --brand=rgb --pattern=ordered image.jpg
+./effect.sh --brand=rgb --pattern=ordered image.jpg
 
 # Combine branding with patterns and shapes
-./dither.sh --brand=lightning --pattern=bitcoin --rect=0.5,0,1,1 image.jpg
+./effect.sh --brand=lightning --pattern=bitcoin --rect=0.5,0,1,1 image.jpg
 ```
 
 **RGB Mode** is special: instead of using a single color, it dithers each color channel (Red, Green, Blue) independently, creating unique color-separation effects. This works with all dithering patterns.
@@ -323,10 +323,10 @@ Converts the **entire image** to grayscale before applying dithering effects.
 
 ```bash
 # Grayscale entire image, then dither
-./dither.sh --grayscale image.jpg
+./effect.sh --grayscale image.jpg
 
 # Combine with shapes
-./dither.sh --grayscale --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --grayscale --circle=0.5,0.5,0.3 image.jpg
 ```
 
 #### Fade/Density Control
@@ -335,13 +335,13 @@ Control the density of dithering across all dithered areas.
 
 ```bash
 # Sparse dithering: only 10% of pixels dithered
-./dither.sh --fade=0.1 image.jpg
+./effect.sh --fade=0.1 image.jpg
 
 # 50% density for subtle effect
-./dither.sh --fade=0.5 --rect=0.5,0,1,1 image.jpg
+./effect.sh --fade=0.5 --rect=0.5,0,1,1 image.jpg
 
 # Combine with grayscale
-./dither.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
+./effect.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
 ```
 
 #### Gradient Density
@@ -355,22 +355,22 @@ Format: `--gradient=angle,start,end`
 
 ```bash
 # Horizontal gradient: sparse on left, dense on right
-./dither.sh --gradient=0,0.1,1.0 image.jpg
+./effect.sh --gradient=0,0.1,1.0 image.jpg
 
 # Vertical gradient: fade from top to bottom
-./dither.sh --gradient=90,0.0,1.0 image.jpg
+./effect.sh --gradient=90,0.0,1.0 image.jpg
 
 # Reverse horizontal: dense on left, sparse on right
-./dither.sh --gradient=180,1.0,0.2 image.jpg
+./effect.sh --gradient=180,1.0,0.2 image.jpg
 
 # Diagonal gradient (45 degrees)
-./dither.sh --gradient=45,0.0,1.0 image.jpg
+./effect.sh --gradient=45,0.0,1.0 image.jpg
 
 # Fade to white: image gradually vanishes
-./dither.sh --gradient=0,1.0,0.0 image.jpg
+./effect.sh --gradient=0,1.0,0.0 image.jpg
 
 # Combine with shapes: gradient only in specific areas
-./dither.sh --gradient=0,1.0,0.1 --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 image.jpg
+./effect.sh --gradient=0,1.0,0.1 --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 image.jpg
 ```
 
 **Note**: Gradient overrides `--fade` if both are specified. The gradient is computed based on pixel position in the image and applied only to dithered regions.
@@ -381,13 +381,13 @@ Choose between white or dark background for dithered areas.
 
 ```bash
 # White background (default): red dots on white
-./dither.sh --background=white image.jpg
+./effect.sh --background=white image.jpg
 
 # Dark background: red dots on dark gray (#222222)
-./dither.sh --background=dark image.jpg
+./effect.sh --background=dark image.jpg
 
 # Combine with fade for subtle dark effect
-./dither.sh --background=dark --fade=0.4 --pos=0.5 image.jpg
+./effect.sh --background=dark --fade=0.4 --pos=0.5 image.jpg
 ```
 
 #### Dithering Threshold
@@ -395,17 +395,17 @@ Choose between white or dark background for dithered areas.
 ```bash
 # Adjust the dithering threshold (0-255, default: 128)
 # Lower values = more red pixels, Higher values = more white pixels
-./dither.sh --threshold 100 image.jpg
+./effect.sh --threshold 100 image.jpg
 ```
 
 #### Randomization & Jitter
 
 ```bash
 # Randomization is enabled by default. Control the amount with --jitter (default: 30.0)
-./dither.sh --jitter 50 image.jpg
+./effect.sh --jitter 50 image.jpg
 
 # Disable randomization for classic Floyd-Steinberg
-./dither.sh --no-randomize image.jpg
+./effect.sh --no-randomize image.jpg
 ```
 
 #### Point Size Scaling
@@ -415,7 +415,7 @@ Make the dither pattern proportional to the image width.
 ```bash
 # Set a reference width (default: 1024).
 # If input is wider than this, dither points become larger.
-./dither.sh --reference-width 800 image.jpg
+./effect.sh --reference-width 800 image.jpg
 ```
 
 #### Darkness Control
@@ -424,10 +424,10 @@ Adjust the darkness of the dithered output.
 
 ```bash
 # Make the result darker (fewer white pixels)
-./dither.sh --darkness 30 image.jpg
+./effect.sh --darkness 30 image.jpg
 
 # Make the result lighter (more white pixels)
-./dither.sh --darkness -30 image.jpg
+./effect.sh --darkness -30 image.jpg
 ```
 
 #### Satoshi Mode
@@ -436,7 +436,7 @@ Enable dynamic thresholding that adapts per pixel based on local brightness.
 
 ```bash
 # Brighter areas get higher threshold -> fewer red pixels
-./dither.sh --satoshi-mode image.jpg
+./effect.sh --satoshi-mode image.jpg
 ```
 
 #### Glitch Mode
@@ -445,10 +445,10 @@ Introduce controlled digital corruption.
 
 ```bash
 # Mild glitch (0.1): Subtle artifacts, slight color shift
-./dither.sh --glitch=0.1 image.jpg
+./effect.sh --glitch=0.1 image.jpg
 
 # Heavy glitch (0.5+): Strong channel shifting, row swapping, and noise
-./dither.sh --glitch=0.5 image.jpg
+./effect.sh --glitch=0.5 image.jpg
 ```
 
 #### Shaded Dithering
@@ -457,29 +457,29 @@ Control how the brand dots are shaded based on the underlying grayscale image.
 
 ```bash
 # Default behavior (factor=1): dots are darker in dark areas
-./dither.sh image.jpg
+./effect.sh image.jpg
 
 # Disable shading (restore old solid-color dots)
-./dither.sh --shade=0 image.jpg
+./effect.sh --shade=0 image.jpg
 
 # Half strength shading
-./dither.sh --shade=0.5 image.jpg
+./effect.sh --shade=0.5 image.jpg
 
 # Quantized shading (restrict to 3 levels)
-./dither.sh --shade="1,q=3" image.jpg
+./effect.sh --shade="1,q=3" image.jpg
 ```
 
 ### Advanced Combinations
 
 ```bash
 # Grayscale + sparse dithering + custom shapes
-./dither.sh --grayscale --fade=0.2 --rect=0,0,0.2,1 --circle=0.6,0.5,0.3 image.jpg
+./effect.sh --grayscale --fade=0.2 --rect=0,0,0.2,1 --circle=0.6,0.5,0.3 image.jpg
 
 # High jitter + darkness + circle
-./dither.sh --jitter=100 --darkness=50 --circle=0.5,0.5,0.4 image.jpg
+./effect.sh --jitter=100 --darkness=50 --circle=0.5,0.5,0.4 image.jpg
 
 # Multiple rectangles with threshold adjustment
-./dither.sh --threshold=100 --rect=0,0,0.3,1 --rect=0.7,0,1,1 image.jpg
+./effect.sh --threshold=100 --rect=0,0,0.3,1 --rect=0.7,0,1,1 image.jpg
 ```
 
 ## Output
