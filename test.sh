@@ -51,13 +51,13 @@ FAILED=0
 MISSING=0
 
 for example in "${EXAMPLES[@]}"; do
-    if [ ! -f "$example" ]; then
-        echo "⚠️  MISSING: $example (reference not in repo)"
+    if [ ! -f "examples/$example" ]; then
+        echo "⚠️  MISSING: examples/$example (reference not in repo)"
         MISSING=$((MISSING + 1))
         continue
     fi
 
-    if cmp -s "$TEMP_DIR/$example" "$example"; then
+    if cmp -s "$TEMP_DIR/$example" "examples/$example"; then
         echo "✓ PASSED: $example"
         PASSED=$((PASSED + 1))
     else
@@ -85,7 +85,7 @@ fi
 
 if [ $MISSING -gt 0 ]; then
     echo "⚠️  Some reference images are missing (not committed to repo)"
-    echo "Run: ./generate-examples.sh && git add -f example-*.jpg"
+    echo "Run: ./generate-examples.sh examples/ && git add -f examples/example-*.jpg"
 fi
 
 echo "✓ All e2e tests passed!"

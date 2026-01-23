@@ -22,7 +22,7 @@ Image dithering/filter tool that applies effects to a portion of an image using 
 ## Examples
 
 ### Input Image
-![Original Image](test-image-800px.jpg)
+![Original Image](examples/test-image-800px.jpg)
 
 ### Example 1: Basic Grayscale with Cut at 0.67
 
@@ -30,7 +30,7 @@ Image dithering/filter tool that applies effects to a portion of an image using 
 ./dither.sh --pos=0.67 --grayscale test-image-800px.jpg
 ```
 
-![Basic Example](example-basic.jpg)
+![Basic Example](examples/example-basic.jpg)
 
 The entire image is converted to grayscale, then the right 33% is dithered in Austrian flag red (#E3000F).
 
@@ -40,7 +40,7 @@ The entire image is converted to grayscale, then the right 33% is dithered in Au
 ./dither.sh --rect=0,0,0.2,1 --rect=0.8,0,1,1 --circle=0.5,0.5,0.2 --jitter=33 --grayscale test-image-800px.jpg
 ```
 
-![Shapes Example](example-shapes.jpg)
+![Shapes Example](examples/example-shapes.jpg)
 
 Creates two wider vertical strips on the edges (20% width each) plus a circle in the center, all on a grayscale background. The jitter value of 33 adds subtle randomness to the dithering pattern.
 
@@ -50,7 +50,7 @@ Creates two wider vertical strips on the edges (20% width each) plus a circle in
 ./dither.sh --pos=0.5 --fade=0.4 --background=dark test-image-800px.jpg
 ```
 
-![Fade Example](example-fade.jpg)
+![Fade Example](examples/example-fade.jpg)
 
 Dithers the right 50% of the image with 40% pixel density on a dark background (#222222), creating a subtle, translucent effect.
 
@@ -62,7 +62,7 @@ Dithers the right 50% of the image with 40% pixel density on a dark background (
 ./dither.sh --circle=0.5,0.5,0.35 --jitter=100 --grayscale test-image-800px.jpg
 ```
 
-![Jitter Example](example-jitter-high.jpg)
+![Jitter Example](examples/example-jitter-high.jpg)
 
 High jitter (100) creates more randomness and organic texture. The default jitter is 30, and `--no-randomize` disables it completely for classic Floyd-Steinberg dithering.
 
@@ -82,7 +82,7 @@ Dynamic thresholding adapts to local brightness, preserving more detail in brigh
 ./dither.sh --glitch=0.1 --grayscale test-image-800px.jpg
 ```
 
-![Glitch Example](example-glitch.jpg)
+![Glitch Example](examples/example-glitch.jpg)
 
 "Corrupt the Dither."
 
@@ -97,7 +97,7 @@ Introduces controlled data degradation for cyberpunk aesthetics:
 ./dither.sh --glitch=0.2 --grayscale --fade=0.9 --jitter=10 test-image-800px.jpg
 ```
 
-![Glitch Fade Example](example-glitch-fade.jpg)
+![Glitch Fade Example](examples/example-glitch-fade.jpg)
 
 Higher glitch intensity (0.2) combined with heavy 90% fade and low jitter creates an extremely sparse, ghostly corruption effect. The minimal pixel distribution lets the glitching breathe.
 
@@ -107,7 +107,7 @@ Higher glitch intensity (0.2) combined with heavy 90% fade and low jitter create
 ./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=0,1.0,0.1 test-image-800px.jpg
 ```
 
-![Gradient Example](example-gradient.jpg)
+![Gradient Example](examples/example-gradient.jpg)
 
 Gradient density transitions create smooth fade effects. This example combines a circle on the left with the right half dithered, using a horizontal gradient that goes from 100% density (left) to 10% density (right). The image gradually fades from solid dithering to sparse, creating a natural transition effect.
 
@@ -125,7 +125,7 @@ Use any angle for diagonal or custom directions.
 ./dither.sh --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 --gradient=180,1.0,0.1 --grayscale test-image-800px.jpg
 ```
 
-![Gradient Reverse Example](example-gradient-reverse.jpg)
+![Gradient Reverse Example](examples/example-gradient-reverse.jpg)
 
 Same composition as Example 8, but with the gradient reversed (180°). The gradient now goes from 100% density (right) to 10% density (left), creating the opposite fade direction. This demonstrates how changing the angle parameter reverses the gradient flow while keeping all other parameters identical.
 
@@ -135,7 +135,7 @@ Same composition as Example 8, but with the gradient reversed (180°). The gradi
 ./dither.sh --shade="1,q=4" --grayscale test-image-800px.jpg
 ```
 
-![Shaded Quantized Example](example-shade-quantized.jpg)
+![Shaded Quantized Example](examples/example-shade-quantized.jpg)
 
 By default, dither dots are shaded proportionally to the darkness of the original image (darker area = darker dot). This creates a "many shaded reds" effect instead of solid flat color.
 
@@ -151,7 +151,7 @@ In this example, `q=4` restricts the red dots to just 4 distinct shades of inten
 ./dither.sh --shade="1,q=4" --glitch=0.1 --grayscale test-image-800px.jpg
 ```
 
-![Shaded Quantized Glitch Example](example-shade-quantized-glitch.jpg)
+![Shaded Quantized Glitch Example](examples/example-shade-quantized-glitch.jpg)
 
 Combines shaded dithering with 4-level quantization and a 10% glitch effect for a corrupt, lo-fi aesthetic.
 
@@ -159,10 +159,10 @@ Combines shaded dithering with 4-level quantization and a 10% glitch effect for 
 
 | Option | Description | Example Output |
 |--------|-------------|----------------|
-| **Default** | Standard settings | ![Default](example-default.jpg) |
-| **High Jitter** | `... --jitter 100` <br> Increases randomness/noise | ![Jitter](example-jitter.jpg) |
-| **Scaled Dots** | `... --reference-width 200` <br> Makes dots larger (proportional to width) | ![Scaled](example-scaled.jpg) |
-| **Darker** | `... --darkness 50` <br> Draws fewer background pixels (darker appearance) | ![Darker](example-dark.jpg) |
+| **Default** | Standard settings | ![Default](examples/example-default.jpg) |
+| **High Jitter** | `... --jitter 100` <br> Increases randomness/noise | ![Jitter](examples/example-jitter.jpg) |
+| **Scaled Dots** | `... --reference-width 200` <br> Makes dots larger (proportional to width) | ![Scaled](examples/example-scaled.jpg) |
+| **Darker** | `... --darkness 50` <br> Draws fewer background pixels (darker appearance) | ![Darker](examples/example-dark.jpg) |
 
 
 ## Installation
@@ -265,12 +265,12 @@ Choose different dithering algorithms with `--pattern`.
 
 | Pattern | Description | Example |
 |---------|-------------|---------|
-| **Floyd-Steinberg** | Default error diffusion (randomized) | ![Default](example-default.jpg) |
-| **Ordered** | Bayer 8x8 matrix (clean, grid-like) | ![Ordered](example-pattern-ordered.jpg) |
-| **Atkinson** | Softer error diffusion (vintage Mac feel) | ![Atkinson](example-pattern-atkinson.jpg) |
-| **Clustered-dot** | Newspaper-style clusters | ![Clustered](example-pattern-clustered.jpg) |
-| **Bitcoin** | Custom pattern inspired by Bitcoin grid | ![Bitcoin](example-pattern-bitcoin.jpg) |
-| **Hal** | Tribute to Hal Finney (PGP-era terminal style) | ![Hal](example-pattern-hal.jpg) |
+| **Floyd-Steinberg** | Default error diffusion (randomized) | ![Default](examples/example-default.jpg) |
+| **Ordered** | Bayer 8x8 matrix (clean, grid-like) | ![Ordered](examples/example-pattern-ordered.jpg) |
+| **Atkinson** | Softer error diffusion (vintage Mac feel) | ![Atkinson](examples/example-pattern-atkinson.jpg) |
+| **Clustered-dot** | Newspaper-style clusters | ![Clustered](examples/example-pattern-clustered.jpg) |
+| **Bitcoin** | Custom pattern inspired by Bitcoin grid | ![Bitcoin](examples/example-pattern-bitcoin.jpg) |
+| **Hal** | Tribute to Hal Finney (PGP-era terminal style) | ![Hal](examples/example-pattern-hal.jpg) |
 
 ```bash
 # Ordered Bayer matrix
@@ -289,10 +289,10 @@ Choose different color palettes with `--brand` to match your project's identity.
 
 | Brand | Type | Color | Description | Example |
 |-------|------|-------|-------------|---------|
-| **btcat** | Monochrome | #E3000F (Red) | Bitcoin Austria brand red (default) | ![btcat](example-brand-btcat.jpg) |
-| **lightning** | Monochrome | #F59B1F (Orange) | Lightning Network orange | ![lightning](example-brand-lightning.jpg) |
-| **cypherpunk** | Monochrome | #00FF41 (Green) | Matrix/terminal green | ![cypherpunk](example-brand-cypherpunk.jpg) |
-| **rgb** | RGB | Full color | Dither each RGB channel separately | ![rgb](example-brand-rgb.jpg) |
+| **btcat** | Monochrome | #E3000F (Red) | Bitcoin Austria brand red (default) | ![btcat](examples/example-brand-btcat.jpg) |
+| **lightning** | Monochrome | #F59B1F (Orange) | Lightning Network orange | ![lightning](examples/example-brand-lightning.jpg) |
+| **cypherpunk** | Monochrome | #00FF41 (Green) | Matrix/terminal green | ![cypherpunk](examples/example-brand-cypherpunk.jpg) |
+| **rgb** | RGB | Full color | Dither each RGB channel separately | ![rgb](examples/example-brand-rgb.jpg) |
 
 ```bash
 # Bitcoin Austria red (default)

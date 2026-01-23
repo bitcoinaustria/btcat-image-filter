@@ -7,7 +7,7 @@ set -e
 
 OUTPUT_DIR="${1:-.}"
 SEED=42
-INPUT_IMG="test-image-800px.jpg"
+INPUT_IMG="examples/test-image-800px.jpg"
 
 echo "Generating example images with seed=$SEED..."
 echo "Output directory: $OUTPUT_DIR"
