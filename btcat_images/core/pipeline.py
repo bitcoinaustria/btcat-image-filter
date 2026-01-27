@@ -322,8 +322,8 @@ def apply_dither(
 
     # Apply dithering only where mask is True
     if dither_mask is not None:
-        for i in range(3):
-            result_array[:, :, i] = np.where(dither_mask, dithered_rgb[:, :, i], result_array[:, :, i])
+        # Use np.copyto for in-place, vectorized update (saves memory)
+        np.copyto(result_array, dithered_rgb, where=dither_mask[:, :, None])
 
     result = Image.fromarray(result_array)
     return result
