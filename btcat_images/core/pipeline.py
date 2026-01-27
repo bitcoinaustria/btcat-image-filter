@@ -107,13 +107,13 @@ def apply_dither(
     if rectangles:
         for x1, y1, x2, y2 in rectangles:
             rect_mask = create_rectangle_mask(w, h, x1, y1, x2, y2)
-            dither_mask = np.logical_or(dither_mask, rect_mask)
+            dither_mask |= rect_mask
 
     # Add all circles
     if circles:
         for cx, cy, r in circles:
             circle_mask = create_circle_mask(w, h, cx, cy, r)
-            dither_mask = np.logical_or(dither_mask, circle_mask)
+            dither_mask |= circle_mask
 
     # Apply gradient or uniform fade if specified (applies to all dithered areas)
     density_mask: Optional[npt.NDArray[np.float64]] = None
