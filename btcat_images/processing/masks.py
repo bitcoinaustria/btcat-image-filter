@@ -82,10 +82,10 @@ def create_circle_mask(
     y, x = np.ogrid[:height, :width]
 
     # Calculate distances from center
-    distances = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+    distances_sq = (x - cx) ** 2 + (y - cy) ** 2
 
     # Create mask
-    mask = distances <= r_pixels
+    mask = distances_sq <= r_pixels ** 2
 
     return mask
 
