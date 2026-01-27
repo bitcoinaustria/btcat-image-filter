@@ -252,118 +252,103 @@ class DitheringScreen(Screen):
             self.update_timer.stop()
         self.update_timer = self.set_timer(0.5, self.update_preview)
 
-    def update_preview(self):
-        # Gather parameters
+    def _get_dither_params(self) -> dict:
+        """Helper to extract current dithering parameters from widgets."""
+        pattern_val = self.query_one("#pattern", Select).value
+        pattern = cast(DitherPattern, str(pattern_val) if pattern_val != Select.BLANK else "floyd-steinberg")
+
+        brand_val = self.query_one("#brand", Select).value
+        brand = str(brand_val) if brand_val != Select.BLANK else "btcat"
+
+        cut_val = self.query_one("#cut_direction", Select).value
+        # Handle empty selection (Textual Select can be None/BLANK)
+        cut_str = str(cut_val) if cut_val != Select.BLANK else "vertical"
+        cut = cast(Literal['vertical', 'horizontal'], cut_str)
+
         try:
-            pattern_val = self.query_one("#pattern", Select).value
-            pattern = cast(DitherPattern, str(pattern_val) if pattern_val != Select.BLANK else "floyd-steinberg")
+            pos = float(self.query_one("#pos", Input).value)
+        except ValueError:
+            pos = 1/GOLDEN_RATIO
 
-            brand_val = self.query_one("#brand", Select).value
-            brand = str(brand_val) if brand_val != Select.BLANK else "btcat"
+        try:
+            threshold = int(self.query_one("#threshold", Input).value)
+        except ValueError:
+            threshold = 128
 
-            cut_val = self.query_one("#cut_direction", Select).value
-            # Handle empty selection (Textual Select can be None/BLANK)
-            cut_str = str(cut_val) if cut_val != Select.BLANK else "vertical"
-            cut: Literal['vertical', 'horizontal'] = cast(Literal['vertical', 'horizontal'], cut_str)
+        try:
+            jitter = float(self.query_one("#jitter", Input).value)
+        except ValueError:
+            jitter = 30.0
 
-            try:
-                pos = float(self.query_one("#pos", Input).value)
-            except ValueError:
-                pos = 1/GOLDEN_RATIO
+        try:
+            glitch = float(self.query_one("#glitch", Input).value)
+        except ValueError:
+            glitch = 0.0
 
-            try:
-                threshold = int(self.query_one("#threshold", Input).value)
-            except ValueError:
-                threshold = 128
+        try:
+            ref_width = int(self.query_one("#reference_width", Input).value)
+        except ValueError:
+            ref_width = 1024
 
-            try:
-                jitter = float(self.query_one("#jitter", Input).value)
-            except ValueError:
-                jitter = 30.0
+        try:
+            darkness = float(self.query_one("#darkness", Input).value)
+        except ValueError:
+            darkness = 0.0
 
-            try:
-                glitch = float(self.query_one("#glitch", Input).value)
-            except ValueError:
-                glitch = 0.0
+        try:
+            fade_val = float(self.query_one("#fade", Input).value)
+        except ValueError:
+            fade_val = 1.0
+        fade = fade_val if fade_val < 1.0 else None
 
-            try:
-                ref_width = int(self.query_one("#reference_width", Input).value)
-            except ValueError:
-                ref_width = 1024
+        # Parse gradient parameters
+        gradient: Optional[Tuple[float, float, float]] = None
+        try:
+            gradient_angle_str = self.query_one("#gradient_angle", Input).value
+            if gradient_angle_str.strip():
+                gradient_angle = float(gradient_angle_str)
+                gradient_start = float(self.query_one("#gradient_start", Input).value)
+                gradient_end = float(self.query_one("#gradient_end", Input).value)
+                gradient = (gradient_angle, gradient_start, gradient_end)
+        except ValueError:
+            gradient = None
 
-            try:
-                darkness = float(self.query_one("#darkness", Input).value)
-            except ValueError:
-                darkness = 0.0
+        bg_val = self.query_one("#background", Select).value
+        bg_str = str(bg_val) if bg_val != Select.BLANK else "white"
+        bg = cast(Literal['white', 'dark'], bg_str)
 
-            try:
-                fade_val = float(self.query_one("#fade", Input).value)
-            except ValueError:
-                fade_val = 1.0
-            fade = fade_val if fade_val < 1.0 else None
+        grayscale = self.query_one("#grayscale", Switch).value
+        randomize = self.query_one("#randomize", Switch).value
+        satoshi = self.query_one("#satoshi_mode", Switch).value
 
-            # Parse gradient parameters
-            gradient: Optional[Tuple[float, float, float]] = None
-            try:
-                gradient_angle_str = self.query_one("#gradient_angle", Input).value
-                if gradient_angle_str.strip():
-                    gradient_angle = float(gradient_angle_str)
-                    gradient_start = float(self.query_one("#gradient_start", Input).value)
-                    gradient_end = float(self.query_one("#gradient_end", Input).value)
-                    gradient = (gradient_angle, gradient_start, gradient_end)
-            except ValueError:
-                gradient = None
+        seed_str = self.query_one("#seed", Input).value
+        seed = int(seed_str) if seed_str.strip() else None
 
-            bg_val = self.query_one("#background", Select).value
-            bg_str = str(bg_val) if bg_val != Select.BLANK else "white"
-            bg: Literal['white', 'dark'] = cast(Literal['white', 'dark'], bg_str)
+        shade_val = self.query_one("#shade", Input).value
+        shade = str(shade_val) if shade_val else "1"
 
-            grayscale = self.query_one("#grayscale", Switch).value
-            randomize = self.query_one("#randomize", Switch).value
-            satoshi = self.query_one("#satoshi_mode", Switch).value
+        return {
+            "split_ratio": pos,
+            "cut_direction": cut,
+            "threshold": threshold,
+            "grayscale_original": grayscale,
+            "randomize": randomize,
+            "jitter": jitter,
+            "reference_width": ref_width,
+            "darkness_offset": darkness,
+            "fade": fade,
+            "gradient": gradient,
+            "background": bg,
+            "satoshi_mode": satoshi,
+            "pattern": pattern,
+            "brand": brand,
+            "glitch": glitch,
+            "shade": shade,
+            "seed": seed
+        }
 
-            seed_str = self.query_one("#seed", Input).value
-            seed = int(seed_str) if seed_str.strip() else None
-
-            shade_val = self.query_one("#shade", Input).value
-            shade = str(shade_val) if shade_val else "1"
-
-            # Run dithering
-            result_img = apply_dither(
-                self.original_image,
-                split_ratio=pos,
-                cut_direction=cut,
-                threshold=threshold,
-                grayscale_original=grayscale,
-                randomize=randomize,
-                jitter=jitter,
-                reference_width=ref_width,
-                darkness_offset=darkness,
-                fade=fade,
-                gradient=gradient,
-                background=bg,
-                satoshi_mode=satoshi,
-                pattern=pattern,
-                brand=brand,
-                glitch=glitch,
-                shade=shade,
-                seed=seed
-            )
-
-            # Save preview to file
-            result_img.save(self.preview_path)
-
-            # Generate ASCII preview
-            ascii_art = self.image_to_ascii(result_img)
-            self.query_one("#preview", Static).update(ascii_art)
-
-        except Exception as e:
-            # self.notify(f"Error updating preview: {e}", severity="error")
-            pass
-
-    def image_to_ascii(self, img: Image.Image) -> Text:
-        """Convert PIL image to colored ASCII text for preview."""
-        # Calculate resize target
+    def _get_preview_target_size(self) -> Tuple[int, int]:
+        """Calculate the target pixel dimensions for the preview based on container size."""
         container = self.query_one("#preview-container")
         width = container.size.width or 80
         height = container.size.height or 40
@@ -372,34 +357,72 @@ class DitheringScreen(Screen):
         width = max(20, width - 4)
         height = max(10, height - 2)
 
-        img_w, img_h = img.size
+        # We want to match the character grid resolution (approx 1 char = 1x2 pixels in our ASCII logic)
+        target_w_max = width
+        target_h_max = height * 2
 
-        # Determine scaling to fit
-        scale_w = width / img_w
-        scale_h = (height * 2) / img_h # *2 because we use half-blocks
+        img_w, img_h = self.original_image.size
+
+        scale_w = target_w_max / img_w
+        scale_h = target_h_max / img_h
         scale = min(scale_w, scale_h)
 
         new_w = int(img_w * scale)
         new_h = int(img_h * scale)
 
-        # Ensure new_h is even for half-block rendering
+        # Ensure new_h is even
         if new_h % 2 != 0:
             new_h -= 1
 
-        if new_w <= 0 or new_h <= 0:
-            return Text("Image too small")
+        return max(1, new_w), max(1, new_h)
 
-        small_img = img.resize((new_w, new_h), Image.Resampling.NEAREST)
-        pixels = small_img.load()
+    def update_preview(self):
+        try:
+            params = self._get_dither_params()
 
+            # Resize original image to preview size BEFORE dithering for performance
+            target_w, target_h = self._get_preview_target_size()
+
+            # Use NEAREST for resizing to keep pixel crispness if already small,
+            # but usually we are downscaling so LANCZOS is better, but this is preview.
+            # Actually, we want to downscale the original image.
+            preview_input = self.original_image.resize((target_w, target_h), Image.Resampling.BILINEAR)
+
+            # Run dithering on small image
+            result_img = apply_dither(preview_input, **params)
+
+            # Save preview to file (low res)
+            result_img.save(self.preview_path)
+
+            # Generate ASCII preview
+            ascii_art = self.image_to_ascii(result_img)
+            self.query_one("#preview", Static).update(ascii_art)
+
+        except Exception:
+            # self.notify(f"Error updating preview: {e}", severity="error")
+            pass
+
+    def image_to_ascii(self, img: Image.Image) -> Text:
+        """Convert PIL image to colored ASCII text for preview."""
+        # Note: img is already resized to target size in update_preview,
+        # but we keep this logic robust just in case.
+
+        target_w, target_h = self._get_preview_target_size()
+
+        # If input image is different size, resize it.
+        # This handles cases where we might pass a full res image, or if rounding errors occurred.
+        if img.size != (target_w, target_h):
+             img = img.resize((target_w, target_h), Image.Resampling.NEAREST)
+
+        pixels = img.load()
         if pixels is None:
             return Text("Error loading image pixels")
 
         # Build Text object
         text = Text()
 
-        for y in range(0, new_h, 2):
-            for x in range(new_w):
+        for y in range(0, target_h, 2):
+            for x in range(target_w):
                 try:
                     r1, g1, b1 = cast(Tuple[int, int, int], pixels[x, y])
                 except Exception:
@@ -407,7 +430,7 @@ class DitheringScreen(Screen):
 
                 try:
                     # Check next row if available
-                    if y + 1 < new_h:
+                    if y + 1 < target_h:
                         r2, g2, b2 = cast(Tuple[int, int, int], pixels[x, y + 1])
                     else:
                         r2, g2, b2 = 0, 0, 0
@@ -427,19 +450,37 @@ class DitheringScreen(Screen):
     def action_open_viewer(self):
         """Open the preview image in external viewer."""
         try:
+            # Generate full resolution preview for external viewer
+            self.notify("Generating full resolution preview...")
+            params = self._get_dither_params()
+            result_img = apply_dither(self.original_image, **params)
+
+            # Save to separate full preview file
+            full_preview_path = self.image_path.parent / f"{self.image_path.stem}-preview-full.png"
+            result_img.save(full_preview_path)
+
             if sys.platform == "linux":
-                subprocess.Popen(["xdg-open", str(self.preview_path)])
+                subprocess.Popen(["xdg-open", str(full_preview_path)])
             elif sys.platform == "darwin": # macOS
-                subprocess.Popen(["open", str(self.preview_path)])
+                subprocess.Popen(["open", str(full_preview_path)])
             elif sys.platform == "win32":
-                subprocess.Popen(["start", str(self.preview_path)], shell=True)
+                subprocess.Popen(["start", str(full_preview_path)], shell=True)
             self.notify("Opened external viewer")
         except Exception as e:
             self.notify(f"Failed to open viewer: {e}", severity="error")
 
     def action_save_output(self):
         """Save to final filename and quit."""
-        final_path = get_output_filename(self.image_path)
-        shutil.copy(self.preview_path, final_path)
-        print(f"Saved to {final_path}")
-        self.app.exit()
+        try:
+            self.notify("Generating high-quality output...")
+            # Must regenerate full resolution image
+            params = self._get_dither_params()
+            result_img = apply_dither(self.original_image, **params)
+
+            final_path = get_output_filename(self.image_path)
+            result_img.save(final_path)
+
+            print(f"Saved to {final_path}")
+            self.app.exit()
+        except Exception as e:
+            self.notify(f"Error saving: {e}", severity="error")
