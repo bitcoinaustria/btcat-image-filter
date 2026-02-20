@@ -1,6 +1,6 @@
 # Original Mode (`--mode=original`)
 
-The **Original Mode** is a 3-color Floyd-Steinberg dithering effect designed by the Bitcoin Austria agency (nbb). Instead of the default binary dithering (ink vs. background), it uses a **3-color palette** of Austrian red, pink, and white to create a richer, more textured look.
+The **Original Mode** is a 3-color Floyd-Steinberg dithering effect. Instead of the default binary dithering (ink vs. background), it uses a **3-color palette** of Austrian red, pink, and white to create a richer, more textured look.
 
 ## How It Works
 
