@@ -10,7 +10,7 @@ More info is in ./README.md
 
 **Note:** Always use `--grayscale` when generating example images unless specifically instructed otherwise. This ensures a consistent and high-quality aesthetic.
 
-**Note:** Always use `--grayscale` when generating example images unless specifically instructed otherwise. This ensures a consistent and high-quality aesthetic.
+**Note:** The default output format is **WebP** (quality 90), which is the preferred format for modern web browsers. The tested/recommended input width is **1920px** (standard desktop). Example images and test references use `examples/test-image-1920px.jpg` as the source.
 
 ## Project Structure
 
@@ -342,9 +342,9 @@ Test with various modes:
 
 ## Output Behavior
 
-- Output filename: `[original-name]-dither.[ext]`
-- If file exists: Appends number (e.g., `image-dither-1.jpg`, `image-dither-2.jpg`)
-- Format: Same as input (JPEG quality=95 for JPG, lossless for PNG)
+- Output filename: `[original-name]-dither.webp` (WebP is the default format)
+- If file exists: Appends number (e.g., `image-dither-1.webp`, `image-dither-2.webp`)
+- Format: WebP (quality=90) by default. When using `--output`, format follows extension (JPEG quality=95, PNG lossless, WebP quality=90)
 - Never overwrites existing files
 
 ## Future Enhancement Ideas

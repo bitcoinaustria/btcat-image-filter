@@ -562,10 +562,13 @@ def dither_image(
         final_output_path = Path(output_path)
 
     # Save with appropriate format
-    if final_output_path.suffix.lower() in ['.jpg', '.jpeg']:
+    ext = final_output_path.suffix.lower()
+    if ext in ['.jpg', '.jpeg']:
         result.save(final_output_path, 'JPEG', quality=95)
-    elif final_output_path.suffix.lower() == '.png':
+    elif ext == '.png':
         result.save(final_output_path, 'PNG')
+    elif ext == '.webp':
+        result.save(final_output_path, 'WEBP', quality=90)
     else:
         result.save(final_output_path)
 

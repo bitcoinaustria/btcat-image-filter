@@ -198,7 +198,7 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ./effect.sh --mode=original --grayscale image.jpg
 ```
 
-![Original Mode](examples/example-original.jpg)
+![Original Mode](examples/example-original.webp)
 
 ### Example 13: Original Mode with Glitch
 
@@ -206,7 +206,7 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ./effect.sh --mode=original --grayscale --glitch=0.1 image.jpg
 ```
 
-![Original Mode with Glitch](examples/example-original-glitch.jpg)
+![Original Mode with Glitch](examples/example-original-glitch.webp)
 
 ### Example 14: Circle Mask
 
@@ -214,7 +214,7 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ./effect.sh --mode=original --grayscale --circle=0.5,0.5,0.3 image.jpg
 ```
 
-![Original Mode Circle](examples/example-original-circle.jpg)
+![Original Mode Circle](examples/example-original-circle.webp)
 
 ### Example 15: Fade (Sparse Dithering)
 
@@ -222,7 +222,7 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ./effect.sh --mode=original --grayscale --fade=0.5 image.jpg
 ```
 
-![Original Mode Fade](examples/example-original-fade.jpg)
+![Original Mode Fade](examples/example-original-fade.webp)
 
 ### Example 16: Gradient Density
 
@@ -230,7 +230,7 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ./effect.sh --mode=original --grayscale --gradient=0,0.1,1.0 image.jpg
 ```
 
-![Original Mode Gradient](examples/example-original-gradient.jpg)
+![Original Mode Gradient](examples/example-original-gradient.webp)
 
 ### Example 17: No Bloom (Cleaner Look)
 
@@ -238,7 +238,7 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ./effect.sh --mode=original --grayscale --bloom-intensity=0 image.jpg
 ```
 
-![Original Mode No Bloom](examples/example-original-nobloom.jpg)
+![Original Mode No Bloom](examples/example-original-nobloom.webp)
 
 ### Example 18: Brightness & Contrast
 
@@ -246,12 +246,20 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ./effect.sh --mode=original --grayscale --brightness=1.3 --contrast=1.2 image.jpg
 ```
 
-![Original Mode Bright](examples/example-original-bright.jpg)
+![Original Mode Bright](examples/example-original-bright.webp)
 
-### Example 19: Point-Size 2 with Detail Reduction
+### Example 19: Point-Size 4 (Chunky Pixels)
+
+```bash
+./effect.sh --mode=original --grayscale --point-size=4 image.jpg
+```
+
+![Original Mode PS4](examples/example-original-ps4.webp)
+
+### Example 20: Point-Size 2 with Detail Reduction
 
 ```bash
 ./effect.sh --mode=original --grayscale --detail=0.7 --point-size=2 image.jpg
 ```
 
-![Original Mode PS2](examples/example-original-ps2.jpg)
+![Original Mode PS2](examples/example-original-ps2.webp)
