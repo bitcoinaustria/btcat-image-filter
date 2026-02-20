@@ -191,7 +191,7 @@ uv sync
 
 ```bash
 # Default: vertical cut at golden ratio (~38%/~62%)
-./effect.sh image.jpg
+./effect.sh image.webp
 
 # Works with PNG too
 ./effect.sh image.png
@@ -203,7 +203,7 @@ Launch the interactive Terminal User Interface to experiment with settings in re
 
 ```bash
 # Start TUI with an image
-uv run python tui.py image.jpg
+uv run python tui.py image.webp
 
 # Or just run TUI and select file from list
 uv run python tui.py
@@ -217,13 +217,13 @@ Define rectangular regions for dithering. Coordinates are specified as `x1,y1,x2
 
 ```bash
 # Single rectangle: dither the right half
-./effect.sh --rect=0.5,0,1,1 image.jpg
+./effect.sh --rect=0.5,0,1,1 image.webp
 
 # Two vertical strips on the edges
-./effect.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 image.jpg
+./effect.sh --rect=0,0,0.1,1 --rect=0.9,0,1,1 image.webp
 
 # Top and bottom strips
-./effect.sh --rect=0,0,1,0.1 --rect=0,0.9,1,1 image.jpg
+./effect.sh --rect=0,0,1,0.1 --rect=0,0.9,1,1 image.webp
 ```
 
 #### Circle Mode
@@ -232,37 +232,37 @@ Define circular regions for dithering. Coordinates are specified as `x,y,radius`
 
 ```bash
 # Circle in the center
-./effect.sh --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --circle=0.5,0.5,0.3 image.webp
 
 # Multiple circles
-./effect.sh --circle=0.25,0.25,0.15 --circle=0.75,0.75,0.15 image.jpg
+./effect.sh --circle=0.25,0.25,0.15 --circle=0.75,0.75,0.15 image.webp
 ```
 
 #### Mix Rectangles and Circles
 
 ```bash
 # Top strip plus center circle
-./effect.sh --rect=0,0,1,0.1 --circle=0.5,0.5,0.2 image.jpg
+./effect.sh --rect=0,0,1,0.1 --circle=0.5,0.5,0.2 image.webp
 
 # Frame effect: strips on all edges plus center circle
-./effect.sh --rect=0,0,0.05,1 --rect=0.95,0,1,1 --rect=0,0,1,0.05 --rect=0,0.95,1,1 --circle=0.5,0.5,0.25 image.jpg
+./effect.sh --rect=0,0,0.05,1 --rect=0.95,0,1,1 --rect=0,0,1,0.05 --rect=0,0.95,1,1 --circle=0.5,0.5,0.25 image.webp
 ```
 
 #### Traditional Cut Mode
 
 ```bash
 # Vertical cut (default): left part original, right part dithered
-./effect.sh --cut=vertical image.jpg
+./effect.sh --cut=vertical image.webp
 
 # Horizontal cut: top part original, bottom part dithered
-./effect.sh --cut=horizontal image.jpg
+./effect.sh --cut=horizontal image.webp
 
 # Custom position (0.0 to 1.0)
 # For vertical: --pos=0.4 means left 40% original, right 60% dithered
-./effect.sh --cut=vertical --pos=0.4 image.jpg
+./effect.sh --cut=vertical --pos=0.4 image.webp
 
 # For horizontal: --pos=0.4 means top 40% original, bottom 60% dithered
-./effect.sh --cut=horizontal --pos=0.4 image.jpg
+./effect.sh --cut=horizontal --pos=0.4 image.webp
 ```
 
 ### Dithering Patterns
@@ -280,13 +280,13 @@ Choose different dithering algorithms with `--pattern`.
 
 ```bash
 # Ordered Bayer matrix
-./effect.sh --pattern=ordered image.jpg
+./effect.sh --pattern=ordered image.webp
 
 # Vintage Atkinson style
-./effect.sh --pattern=atkinson image.jpg
+./effect.sh --pattern=atkinson image.webp
 
 # Hal Finney tribute (scanlines + noise)
-./effect.sh --pattern=hal --grayscale image.jpg
+./effect.sh --pattern=hal --grayscale image.webp
 ```
 
 ### Branding
@@ -302,19 +302,19 @@ Choose different color palettes with `--brand` to match your project's identity.
 
 ```bash
 # Bitcoin Austria red (default)
-./effect.sh --brand=btcat image.jpg
+./effect.sh --brand=btcat image.webp
 
 # Lightning Network orange
-./effect.sh --brand=lightning --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --brand=lightning --circle=0.5,0.5,0.3 image.webp
 
 # Cypherpunk/Matrix green
-./effect.sh --brand=cypherpunk --grayscale image.jpg
+./effect.sh --brand=cypherpunk --grayscale image.webp
 
 # RGB mode: separate dithering for R, G, B channels
-./effect.sh --brand=rgb --pattern=ordered image.jpg
+./effect.sh --brand=rgb --pattern=ordered image.webp
 
 # Combine branding with patterns and shapes
-./effect.sh --brand=lightning --pattern=bitcoin --rect=0.5,0,1,1 image.jpg
+./effect.sh --brand=lightning --pattern=bitcoin --rect=0.5,0,1,1 image.webp
 ```
 
 **RGB Mode** is special: instead of using a single color, it dithers each color channel (Red, Green, Blue) independently, creating unique color-separation effects. This works with all dithering patterns.
@@ -327,10 +327,10 @@ Converts the **entire image** to grayscale before applying dithering effects.
 
 ```bash
 # Grayscale entire image, then dither
-./effect.sh --grayscale image.jpg
+./effect.sh --grayscale image.webp
 
 # Combine with shapes
-./effect.sh --grayscale --circle=0.5,0.5,0.3 image.jpg
+./effect.sh --grayscale --circle=0.5,0.5,0.3 image.webp
 ```
 
 #### Fade/Density Control
@@ -339,13 +339,13 @@ Control the density of dithering across all dithered areas.
 
 ```bash
 # Sparse dithering: only 10% of pixels dithered
-./effect.sh --fade=0.1 image.jpg
+./effect.sh --fade=0.1 image.webp
 
 # 50% density for subtle effect
-./effect.sh --fade=0.5 --rect=0.5,0,1,1 image.jpg
+./effect.sh --fade=0.5 --rect=0.5,0,1,1 image.webp
 
 # Combine with grayscale
-./effect.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.jpg
+./effect.sh --grayscale --fade=0.3 --circle=0.5,0.5,0.4 image.webp
 ```
 
 #### Gradient Density
@@ -359,22 +359,22 @@ Format: `--gradient=angle,start,end`
 
 ```bash
 # Horizontal gradient: sparse on left, dense on right
-./effect.sh --gradient=0,0.1,1.0 image.jpg
+./effect.sh --gradient=0,0.1,1.0 image.webp
 
 # Vertical gradient: fade from top to bottom
-./effect.sh --gradient=90,0.0,1.0 image.jpg
+./effect.sh --gradient=90,0.0,1.0 image.webp
 
 # Reverse horizontal: dense on left, sparse on right
-./effect.sh --gradient=180,1.0,0.2 image.jpg
+./effect.sh --gradient=180,1.0,0.2 image.webp
 
 # Diagonal gradient (45 degrees)
-./effect.sh --gradient=45,0.0,1.0 image.jpg
+./effect.sh --gradient=45,0.0,1.0 image.webp
 
 # Fade to white: image gradually vanishes
-./effect.sh --gradient=0,1.0,0.0 image.jpg
+./effect.sh --gradient=0,1.0,0.0 image.webp
 
 # Combine with shapes: gradient only in specific areas
-./effect.sh --gradient=0,1.0,0.1 --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 image.jpg
+./effect.sh --gradient=0,1.0,0.1 --circle=0.25,0.5,0.2 --rect=0.5,0,1,1 image.webp
 ```
 
 **Note**: Gradient overrides `--fade` if both are specified. The gradient is computed based on pixel position in the image and applied only to dithered regions.
@@ -385,13 +385,13 @@ Choose between white or dark background for dithered areas.
 
 ```bash
 # White background (default): red dots on white
-./effect.sh --background=white image.jpg
+./effect.sh --background=white image.webp
 
 # Dark background: red dots on dark gray (#222222)
-./effect.sh --background=dark image.jpg
+./effect.sh --background=dark image.webp
 
 # Combine with fade for subtle dark effect
-./effect.sh --background=dark --fade=0.4 --pos=0.5 image.jpg
+./effect.sh --background=dark --fade=0.4 --pos=0.5 image.webp
 ```
 
 #### Dithering Threshold
@@ -399,17 +399,17 @@ Choose between white or dark background for dithered areas.
 ```bash
 # Adjust the dithering threshold (0-255, default: 128)
 # Lower values = more red pixels, Higher values = more white pixels
-./effect.sh --threshold 100 image.jpg
+./effect.sh --threshold 100 image.webp
 ```
 
 #### Randomization & Jitter
 
 ```bash
 # Randomization is enabled by default. Control the amount with --jitter (default: 30.0)
-./effect.sh --jitter 50 image.jpg
+./effect.sh --jitter 50 image.webp
 
 # Disable randomization for classic Floyd-Steinberg
-./effect.sh --no-randomize image.jpg
+./effect.sh --no-randomize image.webp
 ```
 
 #### Point Size Scaling
@@ -419,7 +419,7 @@ Make the dither pattern proportional to the image width.
 ```bash
 # Set a reference width (default: 1024).
 # If input is wider than this, dither points become larger.
-./effect.sh --reference-width 800 image.jpg
+./effect.sh --reference-width 800 image.webp
 ```
 
 #### Darkness Control
@@ -428,10 +428,10 @@ Adjust the darkness of the dithered output.
 
 ```bash
 # Make the result darker (fewer white pixels)
-./effect.sh --darkness 30 image.jpg
+./effect.sh --darkness 30 image.webp
 
 # Make the result lighter (more white pixels)
-./effect.sh --darkness -30 image.jpg
+./effect.sh --darkness -30 image.webp
 ```
 
 #### Satoshi Mode
@@ -440,7 +440,7 @@ Enable dynamic thresholding that adapts per pixel based on local brightness.
 
 ```bash
 # Brighter areas get higher threshold -> fewer red pixels
-./effect.sh --satoshi-mode image.jpg
+./effect.sh --satoshi-mode image.webp
 ```
 
 #### Glitch Mode
@@ -449,10 +449,10 @@ Introduce controlled digital corruption.
 
 ```bash
 # Mild glitch (0.1): Subtle artifacts, slight color shift
-./effect.sh --glitch=0.02 image.jpg
+./effect.sh --glitch=0.02 image.webp
 
 # Heavy glitch (0.5+): Strong channel shifting, row swapping, and noise
-./effect.sh --glitch=0.5 image.jpg
+./effect.sh --glitch=0.5 image.webp
 ```
 
 #### Shaded Dithering
@@ -461,29 +461,29 @@ Control how the brand dots are shaded based on the underlying grayscale image.
 
 ```bash
 # Default behavior (factor=1): dots are darker in dark areas
-./effect.sh image.jpg
+./effect.sh image.webp
 
 # Disable shading (restore old solid-color dots)
-./effect.sh --shade=0 image.jpg
+./effect.sh --shade=0 image.webp
 
 # Half strength shading
-./effect.sh --shade=0.5 image.jpg
+./effect.sh --shade=0.5 image.webp
 
 # Quantized shading (restrict to 3 levels)
-./effect.sh --shade="1,q=3" image.jpg
+./effect.sh --shade="1,q=3" image.webp
 ```
 
 ### Advanced Combinations
 
 ```bash
 # Grayscale + sparse dithering + custom shapes
-./effect.sh --grayscale --fade=0.2 --rect=0,0,0.2,1 --circle=0.6,0.5,0.3 image.jpg
+./effect.sh --grayscale --fade=0.2 --rect=0,0,0.2,1 --circle=0.6,0.5,0.3 image.webp
 
 # High jitter + darkness + circle
-./effect.sh --jitter=100 --darkness=50 --circle=0.5,0.5,0.4 image.jpg
+./effect.sh --jitter=100 --darkness=50 --circle=0.5,0.5,0.4 image.webp
 
 # Multiple rectangles with threshold adjustment
-./effect.sh --threshold=100 --rect=0,0,0.3,1 --rect=0.7,0,1,1 image.jpg
+./effect.sh --threshold=100 --rect=0,0,0.3,1 --rect=0.7,0,1,1 image.webp
 ```
 
 ## Output
