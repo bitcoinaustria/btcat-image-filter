@@ -130,6 +130,55 @@ from .core.pipeline import dither_image
     show_default=True,
     help='Shade factor and quantization (e.g. "1", "0.5", "0.5,q=3"). Controls intensity of dot shading based on grayscale value.'
 )
+@click.option(
+    '--mode',
+    type=click.Choice(['default', 'original'], case_sensitive=False),
+    default='default',
+    show_default=True,
+    help='Dithering mode. "original" uses 3-color palette (red/pink/white) with point-size controls.'
+)
+@click.option(
+    '--point-size',
+    type=click.IntRange(1, 8),
+    default=1,
+    show_default=True,
+    help='Pixel block size for original mode (1-8). Higher = chunkier pixels.'
+)
+@click.option(
+    '--brightness',
+    type=click.FloatRange(0.0, 2.0),
+    default=1.0,
+    show_default=True,
+    help='Brightness adjustment for original mode (0.0-2.0).'
+)
+@click.option(
+    '--contrast',
+    type=click.FloatRange(0.0, 2.0),
+    default=1.0,
+    show_default=True,
+    help='Contrast adjustment for original mode (0.0-2.0).'
+)
+@click.option(
+    '--detail',
+    type=click.FloatRange(0.6, 1.0),
+    default=1.0,
+    show_default=True,
+    help='Detail level for original mode (0.6-1.0). Lower = more blur.'
+)
+@click.option(
+    '--bloom-intensity',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.5,
+    show_default=True,
+    help='Bloom effect intensity for original mode (0.0-1.0). 0 = off.'
+)
+@click.option(
+    '--bloom-radius',
+    type=click.FloatRange(1.0, 150.0),
+    default=75.0,
+    show_default=True,
+    help='Bloom blur radius for original mode (1.0-150.0).'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -151,7 +200,14 @@ def main(
     satoshi_mode: bool,
     brand: str,
     glitch: float,
-    shade: str
+    shade: str,
+    mode: Literal['default', 'original'],
+    point_size: int,
+    brightness: float,
+    contrast: float,
+    detail: float,
+    bloom_intensity: float,
+    bloom_radius: float,
 ) -> None:
     """Apply monochrome dithering to a portion of an image using brand colors.
 
@@ -251,7 +307,14 @@ def main(
             satoshi_mode=satoshi_mode,
             brand=brand,
             glitch=glitch,
-            shade=shade
+            shade=shade,
+            mode=mode,
+            point_size=point_size,
+            brightness=brightness,
+            contrast=contrast,
+            detail=detail,
+            bloom_intensity=bloom_intensity,
+            bloom_radius=bloom_radius,
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:

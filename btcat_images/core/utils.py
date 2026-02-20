@@ -16,13 +16,16 @@ def get_output_filename(input_path: Union[str, Path]) -> Path:
     suffix = path.suffix
     directory = path.parent
 
+    # Default output is WebP
+    out_suffix = '.webp'
+
     # Start with base name
-    output_path = directory / f"{stem}-dither{suffix}"
+    output_path = directory / f"{stem}-dither{out_suffix}"
 
     # If file exists, append number
     counter = 1
     while output_path.exists():
-        output_path = directory / f"{stem}-dither-{counter}{suffix}"
+        output_path = directory / f"{stem}-dither-{counter}{out_suffix}"
         counter += 1
 
     return output_path
