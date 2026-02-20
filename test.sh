@@ -44,6 +44,14 @@ EXAMPLES=(
     "example-brand-rgb.jpg"
     "example-shade-quantized.jpg"
     "example-shade-quantized-glitch.jpg"
+    "example-original.jpg"
+    "example-original-glitch.jpg"
+    "example-original-circle.jpg"
+    "example-original-fade.jpg"
+    "example-original-gradient.jpg"
+    "example-original-nobloom.jpg"
+    "example-original-bright.jpg"
+    "example-original-ps2.jpg"
 )
 
 # Compare each generated image with reference

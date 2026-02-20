@@ -215,5 +215,78 @@ uv run python main.py "$INPUT_IMG" \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-brand-rgb.jpg"
 
+# Example 12: Original Mode (nbb)
+echo "Generating example-original.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original.jpg"
+
+# Example 13: Original Mode with Glitch
+echo "Generating example-original-glitch.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --glitch=0.1 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original-glitch.jpg"
+
+# Example 14: Original Mode with circle mask
+echo "Generating example-original-circle.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --circle=0.5,0.5,0.3 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original-circle.jpg"
+
+# Example 15: Original Mode with fade
+echo "Generating example-original-fade.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --fade=0.5 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original-fade.jpg"
+
+# Example 16: Original Mode with gradient
+echo "Generating example-original-gradient.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --gradient=0,0.1,1.0 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original-gradient.jpg"
+
+# Example 17: Original Mode without bloom
+echo "Generating example-original-nobloom.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --bloom-intensity=0 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original-nobloom.jpg"
+
+# Example 18: Original Mode with brightness/contrast
+echo "Generating example-original-bright.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --brightness=1.3 \
+    --contrast=1.2 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original-bright.jpg"
+
+# Example 19: Original Mode with point-size=2 and detail reduction
+echo "Generating example-original-ps2.jpg..."
+uv run python main.py "$INPUT_IMG" \
+    --mode=original \
+    --grayscale \
+    --detail=0.7 \
+    --point-size=2 \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-original-ps2.jpg"
+
 echo ""
 echo "✓ All example images generated successfully!"

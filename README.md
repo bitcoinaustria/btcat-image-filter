@@ -157,6 +157,10 @@ In this example, `q=4` restricts the red dots to just 4 distinct shades of inten
 
 Combines shaded dithering with 4-level quantization and a 10% glitch effect for a corrupt, lo-fi aesthetic.
 
+### Original Mode (3-Color Dithering)
+
+See **[ORIGINAL.md](ORIGINAL.md)** for the full guide on `--mode=original`, including annotated source code, CLI options, and example images.
+
 ### Fine-tuning Options
 
 | Option | Description | Example Output |

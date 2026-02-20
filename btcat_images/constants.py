@@ -9,6 +9,13 @@ BRANDS = {
     'rgb': {'type': 'rgb'}
 }
 
+# Original mode 3-color palette (nbb)
+ORIGINAL_PALETTE = [
+    (227, 0, 15),    # #E3000F - dark (Austrian red)
+    (255, 194, 198), # #ffc2c6 - mid (pink)
+    (255, 255, 255), # #ffffff - light (white)
+]
+
 # Dark background color for dithered areas
 DARK_BACKGROUND: Tuple[int, int, int] = (34, 34, 34)  # #222222
 

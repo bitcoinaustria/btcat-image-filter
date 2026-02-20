@@ -7,8 +7,110 @@ import numpy.typing as npt
 from ..constants import BRANDS, DARK_BACKGROUND, GOLDEN_RATIO, DitherPattern
 from ..processing.masks import create_rectangle_mask, create_circle_mask, create_gradient_density_mask
 from ..processing.filters.glitch import glitch_swap_rows
+from ..processing.filters.bloom import apply_bloom
 from ..processing.dither import apply_dithering_algorithm
+from ..processing.dither.original import original_dither
 from .utils import get_output_filename
+
+def _apply_original_mode(
+    img: Image.Image,
+    split_ratio: Optional[float],
+    cut_direction: Literal['vertical', 'horizontal'],
+    rectangles: Optional[list[tuple[float, float, float, float]]],
+    circles: Optional[list[tuple[float, float, float]]],
+    fade: Optional[float],
+    gradient: Optional[tuple[float, float, float]],
+    glitch: float,
+    seed: Optional[int],
+    point_size: int,
+    brightness: float,
+    contrast: float,
+    detail: float,
+    bloom_intensity: float,
+    bloom_radius: float,
+) -> Image.Image:
+    """Apply original 3-color dithering mode (nbb style)."""
+    width, height = img.size
+    base_img = img.copy()
+    img_array = np.array(img)
+
+    # Create mask (same logic as default mode)
+    if split_ratio is None:
+        split_ratio = 1 / GOLDEN_RATIO
+
+    if not rectangles and not circles:
+        rectangles = []
+        if cut_direction == 'vertical':
+            rectangles.append((split_ratio, 0.0, 1.0, 1.0))
+        else:
+            rectangles.append((0.0, split_ratio, 1.0, 1.0))
+
+    dither_mask = np.zeros((height, width), dtype=bool)
+
+    if rectangles:
+        for x1, y1, x2, y2 in rectangles:
+            rect_mask = create_rectangle_mask(width, height, x1, y1, x2, y2)
+            dither_mask = np.logical_or(dither_mask, rect_mask)
+
+    if circles:
+        for cx, cy, r in circles:
+            circle_mask = create_circle_mask(width, height, cx, cy, r)
+            dither_mask = np.logical_or(dither_mask, circle_mask)
+
+    # Apply original dithering to the full image
+    dithered_rgb = original_dither(
+        img_array,
+        brightness=brightness,
+        contrast=contrast,
+        detail=detail,
+        point_size=point_size,
+    )
+
+    # The dithered result may differ in size due to point_size rounding
+    dith_h, dith_w = dithered_rgb.shape[:2]
+    if dith_w != width or dith_h != height:
+        dithered_img = Image.fromarray(dithered_rgb)
+        dithered_img = dithered_img.resize((width, height), Image.Resampling.NEAREST)
+        dithered_rgb = np.array(dithered_img)
+
+    # Apply density mask (fade/gradient) - skip dithered pixels to show original
+    if gradient is not None:
+        angle, gradient_start, gradient_end = gradient
+        density_mask = create_gradient_density_mask(width, height, angle, gradient_start, gradient_end)
+    elif fade is not None:
+        density_mask = np.full((height, width), fade, dtype=np.float64)
+    else:
+        density_mask = None
+
+    if density_mask is not None:
+        rng = np.random.default_rng(seed)
+        random_vals = rng.random((height, width))
+        # Where random > density, show original instead of dithered
+        skip_mask = random_vals > density_mask
+        # Only skip within the dither region
+        skip_mask = np.logical_and(skip_mask, dither_mask)
+        # These pixels revert to original
+        for i in range(3):
+            dithered_rgb[:, :, i] = np.where(skip_mask, img_array[:, :, i], dithered_rgb[:, :, i])
+
+    # Glitch: row swapping on the dithered RGB result
+    if glitch > 0.0:
+        glitch_seed = seed if seed is not None else np.random.randint(0, 10000)
+        dithered_rgb = glitch_swap_rows(dithered_rgb, glitch, seed=glitch_seed)
+
+    # Composite: apply dithered area where mask is True, keep original elsewhere
+    result_array = np.array(base_img)
+    for i in range(3):
+        result_array[:, :, i] = np.where(dither_mask, dithered_rgb[:, :, i], result_array[:, :, i])
+
+    result = Image.fromarray(result_array)
+
+    # Bloom post-processing
+    if bloom_intensity > 0.0:
+        result = apply_bloom(result, intensity=bloom_intensity, radius=bloom_radius)
+
+    return result
+
 
 def apply_dither(
     img: Image.Image,
@@ -30,7 +132,14 @@ def apply_dither(
     satoshi_mode: bool = False,
     brand: str = 'btcat',
     glitch: float = 0.0,
-    shade: str = "1"
+    shade: str = "1",
+    mode: Literal['default', 'original'] = 'default',
+    point_size: int = 1,
+    brightness: float = 1.0,
+    contrast: float = 1.0,
+    detail: float = 1.0,
+    bloom_intensity: float = 0.5,
+    bloom_radius: float = 75.0,
 ) -> Image.Image:
     """
     Apply dithering to a PIL Image using brand colors and selected pattern.
@@ -48,6 +157,26 @@ def apply_dither(
         img = img.convert('L').convert('RGB')
 
     width, height = img.size
+
+    # --- Original mode: early branch ---
+    if mode == 'original':
+        return _apply_original_mode(
+            img,
+            split_ratio=split_ratio,
+            cut_direction=cut_direction,
+            rectangles=rectangles,
+            circles=circles,
+            fade=fade,
+            gradient=gradient,
+            glitch=glitch,
+            seed=seed,
+            point_size=point_size,
+            brightness=brightness,
+            contrast=contrast,
+            detail=detail,
+            bloom_intensity=bloom_intensity,
+            bloom_radius=bloom_radius,
+        )
 
     # Keep a copy of the base image for non-dithered areas
     base_img = img.copy()
@@ -350,7 +479,14 @@ def dither_image(
     satoshi_mode: bool = False,
     brand: str = 'btcat',
     glitch: float = 0.0,
-    shade: str = "1"
+    shade: str = "1",
+    mode: Literal['default', 'original'] = 'default',
+    point_size: int = 1,
+    brightness: float = 1.0,
+    contrast: float = 1.0,
+    detail: float = 1.0,
+    bloom_intensity: float = 0.5,
+    bloom_radius: float = 75.0,
 ) -> Path:
     """
     Apply dithering to a portion of an image using brand colors.
@@ -408,7 +544,14 @@ def dither_image(
         satoshi_mode=satoshi_mode,
         brand=brand,
         glitch=glitch,
-        shade=shade
+        shade=shade,
+        mode=mode,
+        point_size=point_size,
+        brightness=brightness,
+        contrast=contrast,
+        detail=detail,
+        bloom_intensity=bloom_intensity,
+        bloom_radius=bloom_radius,
     )
 
     # Determine final output path
