@@ -66,7 +66,7 @@ uv run python main.py "$INPUT_IMG" \
 # Example 6: Glitch Mode
 echo "Generating example-glitch.jpg..."
 uv run python main.py "$INPUT_IMG" \
-    --glitch=0.1 \
+    --glitch=0.02 \
     --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-glitch.webp"
@@ -74,7 +74,7 @@ uv run python main.py "$INPUT_IMG" \
 # Example 7: Glitch Mode with Fade
 echo "Generating example-glitch-fade.jpg..."
 uv run python main.py "$INPUT_IMG" \
-    --glitch=0.2 \
+    --glitch=0.1 \
     --grayscale \
     --fade=0.9 \
     --jitter=10 \
@@ -113,7 +113,7 @@ uv run python main.py "$INPUT_IMG" \
 echo "Generating example-shade-quantized-glitch.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --shade="1,q=4" \
-    --glitch=0.1 \
+    --glitch=0.02 \
     --grayscale \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-shade-quantized-glitch.webp"
@@ -228,7 +228,7 @@ echo "Generating example-original-glitch.jpg..."
 uv run python main.py "$INPUT_IMG" \
     --mode=original \
     --grayscale \
-    --glitch=0.1 \
+    --glitch=0.02 \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-original-glitch.webp"
 

@@ -203,7 +203,7 @@ All examples below are generated reproducibly by `generate-examples.sh` with `--
 ### Example 13: Original Mode with Glitch
 
 ```bash
-./effect.sh --mode=original --grayscale --glitch=0.1 image.jpg
+./effect.sh --mode=original --grayscale --glitch=0.02 image.jpg
 ```
 
 ![Original Mode with Glitch](examples/example-original-glitch.webp)

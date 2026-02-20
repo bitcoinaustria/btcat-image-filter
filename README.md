@@ -81,7 +81,7 @@ Dynamic thresholding adapts to local brightness, preserving more detail in brigh
 ### Example 6: Glitch Mode
 
 ```bash
-./effect.sh --glitch=0.1 --grayscale test-image-1920px.jpg
+./effect.sh --glitch=0.02 --grayscale test-image-1920px.jpg
 ```
 
 ![Glitch Example](examples/example-glitch.webp)
@@ -96,12 +96,12 @@ Introduces controlled data degradation for cyberpunk aesthetics:
 ### Example 7: Glitch Mode with Fade
 
 ```bash
-./effect.sh --glitch=0.2 --grayscale --fade=0.9 --jitter=10 test-image-1920px.jpg
+./effect.sh --glitch=0.1 --grayscale --fade=0.9 --jitter=10 test-image-1920px.jpg
 ```
 
 ![Glitch Fade Example](examples/example-glitch-fade.webp)
 
-Higher glitch intensity (0.2) combined with heavy 90% fade and low jitter creates an extremely sparse, ghostly corruption effect. The minimal pixel distribution lets the glitching breathe.
+Higher glitch intensity (0.1) combined with heavy 90% fade and low jitter creates an extremely sparse, ghostly corruption effect. The minimal pixel distribution lets the glitching breathe.
 
 ### Example 8: Gradient Density
 
@@ -150,7 +150,7 @@ In this example, `q=4` restricts the red dots to just 4 distinct shades of inten
 ### Example 11: Shaded Dithering with Quantization and Glitch
 
 ```bash
-./effect.sh --shade="1,q=4" --glitch=0.1 --grayscale test-image-1920px.jpg
+./effect.sh --shade="1,q=4" --glitch=0.02 --grayscale test-image-1920px.jpg
 ```
 
 ![Shaded Quantized Glitch Example](examples/example-shade-quantized-glitch.webp)
@@ -449,7 +449,7 @@ Introduce controlled digital corruption.
 
 ```bash
 # Mild glitch (0.1): Subtle artifacts, slight color shift
-./effect.sh --glitch=0.1 image.jpg
+./effect.sh --glitch=0.02 image.jpg
 
 # Heavy glitch (0.5+): Strong channel shifting, row swapping, and noise
 ./effect.sh --glitch=0.5 image.jpg
