@@ -31,7 +31,6 @@ def _apply_original_mode(
 ) -> Image.Image:
     """Apply original 3-color dithering mode (nbb style)."""
     width, height = img.size
-    base_img = img.copy()
     img_array = np.array(img)
 
     # Create mask (same logic as default mode)
@@ -99,7 +98,7 @@ def _apply_original_mode(
         dithered_rgb = glitch_swap_rows(dithered_rgb, glitch, seed=glitch_seed)
 
     # Composite: apply dithered area where mask is True, keep original elsewhere
-    result_array = np.array(base_img)
+    result_array = img_array.copy()
     for i in range(3):
         result_array[:, :, i] = np.where(dither_mask, dithered_rgb[:, :, i], result_array[:, :, i])
 
@@ -177,9 +176,6 @@ def apply_dither(
             bloom_intensity=bloom_intensity,
             bloom_radius=bloom_radius,
         )
-
-    # Keep a copy of the base image for non-dithered areas
-    base_img = img.copy()
 
     # Handle RGB brand vs Monochrome brands
     brand_config = BRANDS.get(brand, BRANDS['btcat'])
@@ -447,7 +443,7 @@ def apply_dither(
             dithered_rgb[:, :, i] = channel_data
 
     # Create result image by compositing
-    result_array = np.array(base_img)
+    result_array = np.array(img)
 
     # Apply dithering only where mask is True
     if dither_mask is not None:
