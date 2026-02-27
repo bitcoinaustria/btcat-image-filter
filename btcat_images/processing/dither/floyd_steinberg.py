@@ -3,7 +3,7 @@ import numpy.typing as npt
 from numba import jit
 from typing import Optional
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _floyd_steinberg_jit(
     img: npt.NDArray[np.float64],
     original_img: npt.NDArray[np.integer],
