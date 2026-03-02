@@ -107,15 +107,17 @@ app.layout = dbc.Container([
                         dbc.Row([
                             dbc.Col(dbc.Checklist(
                                 options=[{"label": "Grayscale Original", "value": "grayscale"}],
-                                value=[],
+                                value=["grayscale"],
                                 id="input-grayscale",
-                                inline=True,
-                            )),
+                                switch=True,
+                            ))
+                        ], className="mb-2"),
+                        dbc.Row([
                             dbc.Col(dbc.Checklist(
                                 options=[{"label": "Satoshi Mode", "value": "satoshi"}],
                                 value=[],
                                 id="input-satoshi",
-                                inline=True,
+                                switch=True,
                             ))
                         ], className="mb-2"),
                     ])
@@ -207,7 +209,17 @@ app.layout = dbc.Container([
                         style={"height": "100%", "width": "100%"}
                     ),
                     style={"flex": 1, "minHeight": 0, "border": "1px solid #dee2e6", "borderRadius": "4px", "overflow": "hidden"}
-                )
+                ),
+
+                # Command Line Preview
+                html.Div([
+                    html.H6("CLI Equivalent", className="mt-3 mb-2"),
+                    dbc.InputGroup([
+                        dbc.Input(id="cli-command", readonly=True, className="text-muted font-monospace bg-light"),
+                        dbc.Button("Copy", id="btn-copy-cli", color="secondary", outline=True, n_clicks=0),
+                        dcc.Clipboard(id="clipboard-cli", style={"display": "none"})
+                    ])
+                ], className="mt-auto")
             ]),
             width=9
         )
@@ -311,6 +323,17 @@ def create_figure(img_src):
     return fig
 
 @app.callback(
+    Output('input-cut', 'disabled'),
+    Output('input-pos', 'disabled'),
+    Input('masks-container', 'children')
+)
+def disable_cut_controls(children):
+    # Disable cut controls if any custom masks exist
+    has_masks = children is not None and len(children) > 0
+    return has_masks, has_masks
+
+
+@app.callback(
     Output('store-image-processed', 'data'),
     Input('store-image-original', 'data'),
     Input('input-pattern', 'value'),
@@ -392,6 +415,68 @@ def update_graph(processed_b64, original_b64, switch_val):
         return create_figure(original_b64)
 
     return create_figure(processed_b64)
+
+@app.callback(
+    Output("clipboard-cli", "content"),
+    Input("btn-copy-cli", "n_clicks"),
+    State("cli-command", "value"),
+    prevent_initial_call=True
+)
+def copy_cli(n, value):
+    return value
+
+@app.callback(
+    Output("cli-command", "value"),
+    Input('store-image-filename', 'data'),
+    Input('input-pattern', 'value'),
+    Input('input-brand', 'value'),
+    Input('input-background', 'value'),
+    Input('input-cut', 'value'),
+    Input('input-pos', 'value'),
+    Input('input-grayscale', 'value'),
+    Input('input-satoshi', 'value'),
+    Input('input-fade', 'value'),
+    Input('input-jitter', 'value'),
+    Input('input-glitch', 'value'),
+    Input('input-shade', 'value'),
+    Input({'type': 'rect-input', 'index': ALL}, 'value'),
+    Input({'type': 'circle-input', 'index': ALL}, 'value')
+)
+def update_cli_command(filename, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade, rect_inputs, circle_inputs):
+    parts = ["uv run btcat-dither"]
+
+    has_shapes = False
+
+    if rect_inputs:
+        for r in rect_inputs:
+            if r: parts.append(f'--rect="{r.replace(" ", "")}"')
+            has_shapes = True
+
+    if circle_inputs:
+        for c in circle_inputs:
+            if c: parts.append(f'--circle="{c.replace(" ", "")}"')
+            has_shapes = True
+
+    if not has_shapes:
+        if cut != 'vertical': parts.append(f'--cut={cut}')
+        if pos != 0.382: parts.append(f'--pos={pos}')
+
+    if pattern != 'floyd-steinberg': parts.append(f'--pattern={pattern}')
+    if brand != 'btcat': parts.append(f'--brand={brand}')
+    if background != 'white': parts.append(f'--background={background}')
+    if fade != 1.0: parts.append(f'--fade={fade}')
+    if jitter != 15.0: parts.append(f'--jitter={jitter}')
+    if glitch > 0.0: parts.append(f'--glitch={glitch}')
+    if shade != '1': parts.append(f'--shade="{shade}"')
+
+    if 'grayscale' in grayscale_list: parts.append('--grayscale')
+    if 'satoshi' in satoshi_list: parts.append('--satoshi-mode')
+
+    img_name = filename if filename else 'image.jpg'
+    parts.append(f'"{img_name}"')
+
+    return " ".join(parts)
+
 
 @app.callback(
     Output("download-image", "data"),
