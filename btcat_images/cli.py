@@ -179,6 +179,13 @@ from .core.pipeline import dither_image
     show_default=True,
     help='Bloom blur radius for original mode (1.0-150.0).'
 )
+@click.option(
+    '--blue-noise',
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help='Blue noise strength (0.0 to 1.0) applied as a post-processing step.'
+)
 def main(
     image: str,
     cut: Literal['vertical', 'horizontal'],
@@ -208,6 +215,7 @@ def main(
     detail: float,
     bloom_intensity: float,
     bloom_radius: float,
+    blue_noise: float,
 ) -> None:
     """Apply monochrome dithering to a portion of an image using brand colors.
 
@@ -315,6 +323,7 @@ def main(
             detail=detail,
             bloom_intensity=bloom_intensity,
             bloom_radius=bloom_radius,
+            blue_noise=blue_noise,
         )
         click.secho(f"✓ Dithered image saved to: {output_path}", fg='green')
     except Exception as e:

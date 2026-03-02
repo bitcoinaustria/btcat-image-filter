@@ -156,6 +156,15 @@ app.layout = dbc.Container([
 
                         dbc.Label("Shade (e.g. 1 or 0.5,q=3)"),
                         dbc.Input(id="input-shade", value="1", type="text", className="mb-3"),
+
+                        dbc.Label("Blue Noise Amount"),
+                        dcc.Slider(
+                            id='input-blue-noise',
+                            min=0.0, max=1.0, step=0.01,
+                            value=0.0,
+                            marks={0: '0', 0.5: '0.5', 1: '1'},
+                            className="mb-3"
+                        ),
                     ])
                 ], className="mb-3"),
 
@@ -347,10 +356,11 @@ def disable_cut_controls(children):
     Input('input-jitter', 'value'),
     Input('input-glitch', 'value'),
     Input('input-shade', 'value'),
+    Input('input-blue-noise', 'value'),
     Input({'type': 'rect-input', 'index': ALL}, 'value'),
     Input({'type': 'circle-input', 'index': ALL}, 'value')
 )
-def process_image(original_b64, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade, rect_inputs, circle_inputs):
+def process_image(original_b64, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade, blue_noise, rect_inputs, circle_inputs):
     if not original_b64:
         return dash.no_update
 
@@ -389,7 +399,8 @@ def process_image(original_b64, pattern, brand, background, cut, pos, grayscale_
             satoshi_mode=satoshi_mode,
             brand=brand,
             glitch=glitch,
-            shade=shade
+            shade=shade,
+            blue_noise=blue_noise
         )
 
         return pil_to_b64(processed_img)
@@ -439,10 +450,11 @@ def copy_cli(n, value):
     Input('input-jitter', 'value'),
     Input('input-glitch', 'value'),
     Input('input-shade', 'value'),
+    Input('input-blue-noise', 'value'),
     Input({'type': 'rect-input', 'index': ALL}, 'value'),
     Input({'type': 'circle-input', 'index': ALL}, 'value')
 )
-def update_cli_command(filename, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade, rect_inputs, circle_inputs):
+def update_cli_command(filename, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade, blue_noise, rect_inputs, circle_inputs):
     parts = ["uv run btcat-dither"]
 
     has_shapes = False
@@ -468,6 +480,7 @@ def update_cli_command(filename, pattern, brand, background, cut, pos, grayscale
     if jitter != 15.0: parts.append(f'--jitter={jitter}')
     if glitch > 0.0: parts.append(f'--glitch={glitch}')
     if shade != '1': parts.append(f'--shade="{shade}"')
+    if blue_noise > 0.0: parts.append(f'--blue-noise={blue_noise}')
 
     if 'grayscale' in grayscale_list: parts.append('--grayscale')
     if 'satoshi' in satoshi_list: parts.append('--satoshi-mode')

@@ -8,6 +8,7 @@ from ..constants import BRANDS, DARK_BACKGROUND, GOLDEN_RATIO, DitherPattern
 from ..processing.masks import create_rectangle_mask, create_circle_mask, create_gradient_density_mask
 from ..processing.filters.glitch import glitch_swap_rows
 from ..processing.filters.bloom import apply_bloom
+from ..processing.filters.blue_noise import apply_blue_noise
 from ..processing.dither import apply_dithering_algorithm
 from ..processing.dither.original import original_dither
 from .utils import get_output_filename
@@ -140,6 +141,7 @@ def apply_dither(
     detail: float = 1.0,
     bloom_intensity: float = 0.5,
     bloom_radius: float = 75.0,
+    blue_noise: float = 0.0,
 ) -> Image.Image:
     """
     Apply dithering to a PIL Image using brand colors and selected pattern.
@@ -455,6 +457,11 @@ def apply_dither(
         np.copyto(result_array, dithered_rgb, where=dither_mask[:, :, None])
 
     result = Image.fromarray(result_array)
+
+    # Blue noise post-processing
+    if blue_noise > 0.0:
+        result = apply_blue_noise(result, strength=blue_noise, seed=seed)
+
     return result
 
 
@@ -487,6 +494,7 @@ def dither_image(
     detail: float = 1.0,
     bloom_intensity: float = 0.5,
     bloom_radius: float = 75.0,
+    blue_noise: float = 0.0,
 ) -> Path:
     """
     Apply dithering to a portion of an image using brand colors.
@@ -552,6 +560,7 @@ def dither_image(
         detail=detail,
         bloom_intensity=bloom_intensity,
         bloom_radius=bloom_radius,
+        blue_noise=blue_noise,
     )
 
     # Determine final output path
