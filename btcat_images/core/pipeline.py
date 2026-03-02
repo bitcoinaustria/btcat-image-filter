@@ -396,9 +396,12 @@ def apply_dither(
             # Normalize grayscale image to 0.0-1.0
             t_map = img_array.astype(float) / 255.0
 
-            # Apply quantization if requested
-            if shade_quant is not None and shade_quant > 1:
-                t_map = np.round(t_map * (shade_quant - 1)) / (shade_quant - 1)
+            # Apply quantization if requested (1 = binary/2 tones, 32 = 32 tones)
+            if shade_quant is not None and shade_quant >= 1:
+                if shade_quant <= 1:
+                    t_map = np.round(t_map)  # binary: 0 or 1 (2 tones)
+                else:
+                    t_map = np.round(t_map * (shade_quant - 1)) / (shade_quant - 1)
 
             # Apply shade factor
             t_map = t_map * shade_factor

@@ -239,12 +239,12 @@ app.layout = dbc.Container([
                             marks={0: '0', 0.5: '0.5', 1: '1'},
                             className="mb-3"
                         ),
-                        dbc.Label("Shade Quantization (0 = Off)"),
+                        dbc.Label("Shade Quantization Tones (1 = 2 tones, 32 = 32 tones)"),
                         dcc.Slider(
                             id='input-shade-quant',
-                            min=0, max=32, step=1,
+                            min=1, max=32, step=1,
                             value=4,
-                            marks={0: 'Off', 4: '4', 16: '16', 32: '32'},
+                            marks={1: '1', 8: '8', 16: '16', 32: '32'},
                             className="mb-3"
                         ),
 
@@ -506,8 +506,7 @@ def process_image(original_b64, mode, pattern, brand, background, cut, pos, gray
         satoshi_mode = 'satoshi' in satoshi_list
 
         shade = f"{shade_factor}"
-        if shade_quant > 0:
-            shade += f",q={shade_quant}"
+        shade += f",q={shade_quant}"
 
         processed_img = apply_dither(
             img=img,
@@ -631,8 +630,7 @@ def update_cli_command(filename, mode, pattern, brand, background, cut, pos, gra
     if blue_noise > 0.0: parts.append(f'--blue-noise={blue_noise}')
 
         shade = f"{shade_factor}"
-        if shade_quant > 0:
-            shade += f",q={shade_quant}"
+        shade += f",q={shade_quant}"
         if shade != '1.0': parts.append(f'--shade="{shade}"')
 
         if 'satoshi' in satoshi_list: parts.append('--satoshi-mode')
