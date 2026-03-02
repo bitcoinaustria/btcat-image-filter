@@ -247,6 +247,15 @@ app.layout = dbc.Container([
                             marks={0: 'Off', 4: '4', 16: '16', 32: '32'},
                             className="mb-3"
                         ),
+
+                        dbc.Label("Seed"),
+                        dcc.Slider(
+                            id='input-seed',
+                            min=0, max=2121, step=1,
+                            value=0,
+                            marks={0: '0', 2121: '2121'},
+                            className="mb-3"
+                        ),
                     ])
                 ], id="tuning-effects-card", className="mb-3"),
 
@@ -452,6 +461,7 @@ def disable_cut_controls(children):
     Input('input-glitch', 'value'),
     Input('input-shade-factor', 'value'),
     Input('input-shade-quant', 'value'),
+    Input('input-seed', 'value'),
     Input('input-point-size', 'value'),
     Input('input-brightness', 'value'),
     Input('input-contrast', 'value'),
@@ -461,7 +471,7 @@ def disable_cut_controls(children):
     Input({'type': 'rect-input', 'index': ALL}, 'value'),
     Input({'type': 'circle-input', 'index': ALL}, 'value')
 )
-def process_image(original_b64, mode, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade_factor, shade_quant, point_size, brightness, contrast, detail, bloom_intensity, bloom_radius, rect_inputs, circle_inputs):
+def process_image(original_b64, mode, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade_factor, shade_quant, seed, point_size, brightness, contrast, detail, bloom_intensity, bloom_radius, rect_inputs, circle_inputs):
     if not original_b64:
         return dash.no_update
 
@@ -505,6 +515,7 @@ def process_image(original_b64, mode, pattern, brand, background, cut, pos, gray
             brand=brand,
             glitch=glitch,
             shade=shade,
+            seed=seed if seed > 0 else None,
             mode=mode,
             point_size=point_size,
             brightness=brightness,
@@ -563,6 +574,7 @@ def copy_cli(n, value):
     Input('input-glitch', 'value'),
     Input('input-shade-factor', 'value'),
     Input('input-shade-quant', 'value'),
+    Input('input-seed', 'value'),
     Input('input-point-size', 'value'),
     Input('input-brightness', 'value'),
     Input('input-contrast', 'value'),
@@ -572,7 +584,7 @@ def copy_cli(n, value):
     Input({'type': 'rect-input', 'index': ALL}, 'value'),
     Input({'type': 'circle-input', 'index': ALL}, 'value')
 )
-def update_cli_command(filename, mode, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade_factor, shade_quant, point_size, brightness, contrast, detail, bloom_intensity, bloom_radius, rect_inputs, circle_inputs):
+def update_cli_command(filename, mode, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade_factor, shade_quant, seed, point_size, brightness, contrast, detail, bloom_intensity, bloom_radius, rect_inputs, circle_inputs):
     parts = ["uv run btcat-dither"]
 
     has_shapes = False
@@ -611,6 +623,8 @@ def update_cli_command(filename, mode, pattern, brand, background, cut, pos, gra
         if shade != '1.0': parts.append(f'--shade="{shade}"')
 
         if 'satoshi' in satoshi_list: parts.append('--satoshi-mode')
+
+    if seed > 0: parts.append(f'--seed={seed}')
 
     if fade != 1.0: parts.append(f'--fade={fade}')
     if glitch > 0.0: parts.append(f'--glitch={glitch}')
