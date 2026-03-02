@@ -49,6 +49,23 @@ app.layout = dbc.Container([
                     ])
                 ], className="mb-3"),
 
+                # Mode Settings
+                dbc.Card([
+                    dbc.CardHeader("Mode"),
+                    dbc.CardBody([
+                        dbc.RadioItems(
+                            id="input-mode",
+                            options=[
+                                {"label": "Default", "value": "default"},
+                                {"label": "Original (3-Color)", "value": "original"},
+                            ],
+                            value="default",
+                            inline=True,
+                            className="mb-2"
+                        )
+                    ])
+                ], className="mb-3"),
+
                 # Global Settings
                 dbc.Card([
                     dbc.CardHeader("Global Settings"),
@@ -121,7 +138,67 @@ app.layout = dbc.Container([
                             ))
                         ], className="mb-2"),
                     ])
-                ], className="mb-3"),
+                ], id="global-settings-card", className="mb-3"),
+
+                # Original Mode Settings
+                dbc.Card([
+                    dbc.CardHeader("Original Mode Settings"),
+                    dbc.CardBody([
+                        dbc.Label("Point Size"),
+                        dcc.Slider(
+                            id='input-point-size',
+                            min=1, max=8, step=1,
+                            value=1,
+                            marks={1: '1', 4: '4', 8: '8'},
+                            className="mb-3"
+                        ),
+
+                        dbc.Label("Brightness"),
+                        dcc.Slider(
+                            id='input-brightness',
+                            min=0.0, max=2.0, step=0.1,
+                            value=1.0,
+                            marks={0: '0', 1: '1', 2: '2'},
+                            className="mb-3"
+                        ),
+
+                        dbc.Label("Contrast"),
+                        dcc.Slider(
+                            id='input-contrast',
+                            min=0.0, max=2.0, step=0.1,
+                            value=1.0,
+                            marks={0: '0', 1: '1', 2: '2'},
+                            className="mb-3"
+                        ),
+
+                        dbc.Label("Detail"),
+                        dcc.Slider(
+                            id='input-detail',
+                            min=0.6, max=1.0, step=0.05,
+                            value=1.0,
+                            marks={0.6: '0.6', 0.8: '0.8', 1.0: '1.0'},
+                            className="mb-3"
+                        ),
+
+                        dbc.Label("Bloom Intensity"),
+                        dcc.Slider(
+                            id='input-bloom-intensity',
+                            min=0.0, max=1.0, step=0.05,
+                            value=0.5,
+                            marks={0: '0', 0.5: '0.5', 1: '1'},
+                            className="mb-3"
+                        ),
+
+                        dbc.Label("Bloom Radius"),
+                        dcc.Slider(
+                            id='input-bloom-radius',
+                            min=1.0, max=150.0, step=1.0,
+                            value=75.0,
+                            marks={1: '1', 75: '75', 150: '150'},
+                            className="mb-3"
+                        ),
+                    ])
+                ], id="original-settings-card", className="mb-3", style={"display": "none"}),
 
                 # Tuning Settings
                 dbc.Card([
@@ -154,8 +231,22 @@ app.layout = dbc.Container([
                             className="mb-3"
                         ),
 
-                        dbc.Label("Shade (e.g. 1 or 0.5,q=3)"),
-                        dbc.Input(id="input-shade", value="1", type="text", className="mb-3"),
+                        dbc.Label("Shade Factor"),
+                        dcc.Slider(
+                            id='input-shade-factor',
+                            min=0.0, max=1.0, step=0.05,
+                            value=1.0,
+                            marks={0: '0', 0.5: '0.5', 1: '1'},
+                            className="mb-3"
+                        ),
+                        dbc.Label("Shade Quantization (0 = Off)"),
+                        dcc.Slider(
+                            id='input-shade-quant',
+                            min=0, max=32, step=1,
+                            value=4,
+                            marks={0: 'Off', 4: '4', 16: '16', 32: '32'},
+                            className="mb-3"
+                        ),
 
                         dbc.Label("Blue Noise Amount"),
                         dcc.Slider(
@@ -175,7 +266,7 @@ app.layout = dbc.Container([
                             className="mb-3"
                         ),
                     ])
-                ], className="mb-3"),
+                ], id="tuning-effects-card", className="mb-3"),
 
                 # Masks Section
                 dbc.Card([
@@ -341,6 +432,18 @@ def create_figure(img_src):
     return fig
 
 @app.callback(
+    Output('global-settings-card', 'style'),
+    Output('tuning-effects-card', 'style'),
+    Output('original-settings-card', 'style'),
+    Input('input-mode', 'value')
+)
+def toggle_mode_settings(mode):
+    if mode == 'original':
+        return {"display": "none"}, {"display": "none"}, {"display": "block"}
+    else:
+        return {"display": "block"}, {"display": "block"}, {"display": "none"}
+
+@app.callback(
     Output('input-cut', 'disabled'),
     Output('input-pos', 'disabled'),
     Input('masks-container', 'children')
@@ -354,6 +457,7 @@ def disable_cut_controls(children):
 @app.callback(
     Output('store-image-processed', 'data'),
     Input('store-image-original', 'data'),
+    Input('input-mode', 'value'),
     Input('input-pattern', 'value'),
     Input('input-brand', 'value'),
     Input('input-background', 'value'),
@@ -364,13 +468,20 @@ def disable_cut_controls(children):
     Input('input-fade', 'value'),
     Input('input-jitter', 'value'),
     Input('input-glitch', 'value'),
-    Input('input-shade', 'value'),
+    Input('input-shade-factor', 'value'),
+    Input('input-shade-quant', 'value'),
     Input('input-blue-noise', 'value'),
     Input('input-seed', 'value'),
+    Input('input-point-size', 'value'),
+    Input('input-brightness', 'value'),
+    Input('input-contrast', 'value'),
+    Input('input-detail', 'value'),
+    Input('input-bloom-intensity', 'value'),
+    Input('input-bloom-radius', 'value'),
     Input({'type': 'rect-input', 'index': ALL}, 'value'),
     Input({'type': 'circle-input', 'index': ALL}, 'value')
 )
-def process_image(original_b64, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade, blue_noise, seed, rect_inputs, circle_inputs):
+def process_image(original_b64, mode, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade_factor, shade_quant, blue_noise, seed, point_size, brightness, contrast, detail, bloom_intensity, bloom_radius, rect_inputs, circle_inputs):
     if not original_b64:
         return dash.no_update
 
@@ -394,6 +505,10 @@ def process_image(original_b64, pattern, brand, background, cut, pos, grayscale_
         grayscale_original = 'grayscale' in grayscale_list
         satoshi_mode = 'satoshi' in satoshi_list
 
+        shade = f"{shade_factor}"
+        if shade_quant > 0:
+            shade += f",q={shade_quant}"
+
         processed_img = apply_dither(
             img=img,
             split_ratio=pos,
@@ -411,7 +526,14 @@ def process_image(original_b64, pattern, brand, background, cut, pos, grayscale_
             glitch=glitch,
             shade=shade,
             blue_noise=blue_noise,
-            seed=seed if seed > 0 else None
+            seed=seed if seed > 0 else None,
+            mode=mode,
+            point_size=point_size,
+            brightness=brightness,
+            contrast=contrast,
+            detail=detail,
+            bloom_intensity=bloom_intensity,
+            bloom_radius=bloom_radius
         )
 
         return pil_to_b64(processed_img)
@@ -450,6 +572,7 @@ def copy_cli(n, value):
 @app.callback(
     Output("cli-command", "value"),
     Input('store-image-filename', 'data'),
+    Input('input-mode', 'value'),
     Input('input-pattern', 'value'),
     Input('input-brand', 'value'),
     Input('input-background', 'value'),
@@ -460,13 +583,20 @@ def copy_cli(n, value):
     Input('input-fade', 'value'),
     Input('input-jitter', 'value'),
     Input('input-glitch', 'value'),
-    Input('input-shade', 'value'),
+    Input('input-shade-factor', 'value'),
+    Input('input-shade-quant', 'value'),
     Input('input-blue-noise', 'value'),
     Input('input-seed', 'value'),
+    Input('input-point-size', 'value'),
+    Input('input-brightness', 'value'),
+    Input('input-contrast', 'value'),
+    Input('input-detail', 'value'),
+    Input('input-bloom-intensity', 'value'),
+    Input('input-bloom-radius', 'value'),
     Input({'type': 'rect-input', 'index': ALL}, 'value'),
     Input({'type': 'circle-input', 'index': ALL}, 'value')
 )
-def update_cli_command(filename, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade, blue_noise, seed, rect_inputs, circle_inputs):
+def update_cli_command(filename, mode, pattern, brand, background, cut, pos, grayscale_list, satoshi_list, fade, jitter, glitch, shade_factor, shade_quant, blue_noise, seed, point_size, brightness, contrast, detail, bloom_intensity, bloom_radius, rect_inputs, circle_inputs):
     parts = ["uv run btcat-dither"]
 
     has_shapes = False
@@ -485,18 +615,33 @@ def update_cli_command(filename, pattern, brand, background, cut, pos, grayscale
         if cut != 'vertical': parts.append(f'--cut={cut}')
         if pos != 0.382: parts.append(f'--pos={pos}')
 
-    if pattern != 'floyd-steinberg': parts.append(f'--pattern={pattern}')
-    if brand != 'btcat': parts.append(f'--brand={brand}')
-    if background != 'white': parts.append(f'--background={background}')
-    if fade != 1.0: parts.append(f'--fade={fade}')
-    if jitter != 15.0: parts.append(f'--jitter={jitter}')
-    if glitch > 0.0: parts.append(f'--glitch={glitch}')
-    if shade != '1': parts.append(f'--shade="{shade}"')
+    if mode == 'original':
+        parts.append('--mode=original')
+        if point_size != 1: parts.append(f'--point-size={point_size}')
+        if brightness != 1.0: parts.append(f'--brightness={brightness}')
+        if contrast != 1.0: parts.append(f'--contrast={contrast}')
+        if detail != 1.0: parts.append(f'--detail={detail}')
+        if bloom_intensity != 0.5: parts.append(f'--bloom-intensity={bloom_intensity}')
+        if bloom_radius != 75.0: parts.append(f'--bloom-radius={bloom_radius}')
+    else:
+        if pattern != 'floyd-steinberg': parts.append(f'--pattern={pattern}')
+        if brand != 'btcat': parts.append(f'--brand={brand}')
+        if background != 'white': parts.append(f'--background={background}')
+        if jitter != 15.0: parts.append(f'--jitter={jitter}')
     if blue_noise > 0.0: parts.append(f'--blue-noise={blue_noise}')
+
+        shade = f"{shade_factor}"
+        if shade_quant > 0:
+            shade += f",q={shade_quant}"
+        if shade != '1.0': parts.append(f'--shade="{shade}"')
+
+        if 'satoshi' in satoshi_list: parts.append('--satoshi-mode')
+
     if seed > 0: parts.append(f'--seed={seed}')
 
+    if fade != 1.0: parts.append(f'--fade={fade}')
+    if glitch > 0.0: parts.append(f'--glitch={glitch}')
     if 'grayscale' in grayscale_list: parts.append('--grayscale')
-    if 'satoshi' in satoshi_list: parts.append('--satoshi-mode')
 
     img_name = filename if filename else 'image.jpg'
     parts.append(f'"{img_name}"')
