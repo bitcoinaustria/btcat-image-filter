@@ -49,12 +49,12 @@ def _apply_original_mode(
     if rectangles:
         for x1, y1, x2, y2 in rectangles:
             rect_mask = create_rectangle_mask(width, height, x1, y1, x2, y2)
-            dither_mask = np.logical_or(dither_mask, rect_mask)
+            dither_mask |= rect_mask
 
     if circles:
         for cx, cy, r in circles:
             circle_mask = create_circle_mask(width, height, cx, cy, r)
-            dither_mask = np.logical_or(dither_mask, circle_mask)
+            dither_mask |= circle_mask
 
     # Apply original dithering to the full image
     dithered_rgb = original_dither(
