@@ -33,19 +33,19 @@ def apply_dithering_algorithm(
             )
         case 'ordered':
             return ordered_dither(
-                image_array, threshold, BAYER_8x8, threshold_offset, density_mask, seed
+                image_array, threshold, BAYER_8x8, threshold_offset, density_mask, seed, jitter
             )
         case 'clustered-dot':
             return ordered_dither(
-                image_array, threshold, CLUSTERED_8x8, threshold_offset, density_mask, seed
+                image_array, threshold, CLUSTERED_8x8, threshold_offset, density_mask, seed, jitter
             )
         case 'bitcoin':
             return ordered_dither(
-                image_array, threshold, BITCOIN_8x8, threshold_offset, density_mask, seed
+                image_array, threshold, BITCOIN_8x8, threshold_offset, density_mask, seed, jitter
             )
         case 'blue-noise':
             return ordered_dither(
-                image_array, threshold, BLUE_NOISE_64x64, threshold_offset, density_mask, seed
+                image_array, threshold, BLUE_NOISE_64x64, threshold_offset, density_mask, seed, jitter
             )
         case 'hal':
             return hal_dither(

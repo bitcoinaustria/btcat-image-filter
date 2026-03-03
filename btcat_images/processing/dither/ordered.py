@@ -8,7 +8,8 @@ def ordered_dither(
     matrix: npt.NDArray[np.float64],
     threshold_offset: float = 0.0,
     density_mask: Optional[npt.NDArray[np.float64]] = None,
-    seed: Optional[int] = None  # Unused but kept for interface consistency
+    seed: Optional[int] = None,
+    jitter: float = 0.0
 ) -> npt.NDArray[np.uint8]:
     """
     Apply ordered dithering using a threshold matrix (Bayer, Clustered Dot, etc.).
@@ -22,7 +23,8 @@ def ordered_dither(
         matrix: 2D float array (values 0.0-1.0) representing the dither pattern.
         threshold_offset: Bias added to threshold. Positive = darker output. Default: 0.0.
         density_mask: Optional mask (0.0-1.0) for fade effects.
-        seed: Random seed (only used for density mask probabilistic fade).
+        seed: Random seed for reproducible jitter and density mask fade.
+        jitter: Amount of random noise (±jitter) to add to thresholds. Default: 0.0.
 
     Returns:
         Binary dithered array (uint8).
@@ -41,6 +43,12 @@ def ordered_dither(
 
     threshold_shift = threshold - 128.0 + threshold_offset
     effective_thresholds = (tiled_matrix * 255.0) + threshold_shift
+
+    # Add random jitter to break up regular patterns
+    if jitter > 0.0:
+        rng = np.random.default_rng(seed=seed)
+        random_noise = rng.uniform(-jitter, jitter, size=(height, width))
+        effective_thresholds = effective_thresholds + random_noise
 
     # Start with original image values
     result = image_array.astype(np.uint8).copy()

@@ -160,15 +160,6 @@ app.layout = dbc.Container([
                             ))
                         ], className="mb-1"),
 
-                        dbc.Label("Jitter", className="small mb-0"),
-                        dcc.Slider(
-                            id='input-jitter',
-                            min=0.0, max=100.0, step=1.0,
-                            value=30.0,
-                            marks={0: '0', 50: '50', 100: '100'},
-                            className="mb-1"
-                        ),
-
                         dbc.Label("Shade Factor", className="small mb-0"),
                         dcc.Slider(
                             id='input-shade-factor',
@@ -180,9 +171,9 @@ app.layout = dbc.Container([
                         dbc.Label("Shade Quant (0=Off)", className="small mb-0"),
                         dcc.Slider(
                             id='input-shade-quant',
-                            min=0, max=32, step=1,
+                            min=0, max=21, step=1,
                             value=4,
-                            marks={0: 'Off', 4: '4', 16: '16', 32: '32'},
+                            marks={0: 'Off', 4: '4', 11: '11', 21: '21'},
                             className="mb-1"
                         ),
                     ], className="py-2 px-2")
@@ -267,6 +258,15 @@ app.layout = dbc.Container([
                             min=0.0, max=1.0, step=0.01,
                             value=0.0,
                             marks={0: '0', 0.5: '0.5', 1: '1'},
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Jitter", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-jitter',
+                            min=0.0, max=100.0, step=1.0,
+                            value=30.0,
+                            marks={0: '0', 50: '50', 100: '100'},
                             className="mb-1"
                         ),
 
