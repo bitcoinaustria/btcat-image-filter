@@ -429,18 +429,17 @@ def pil_to_b64(img: Image.Image, format="WEBP"):
 
 def create_figure(img_src):
     fig = go.Figure()
-    # Add invisible trace to define bounds for panning
     fig.add_trace(go.Image(source=img_src))
 
-    # Hide axes and set layout
     fig.update_layout(
         xaxis=dict(visible=False, showgrid=False, zeroline=False),
         yaxis=dict(visible=False, showgrid=False, zeroline=False),
         margin=dict(l=0, r=0, t=0, b=0),
         plot_bgcolor="white",
         dragmode='pan',
-        # Keep aspect ratio
-        yaxis_scaleanchor="x"
+        yaxis_scaleanchor="x",
+        # Preserve zoom/pan state across re-renders
+        uirevision="constant",
     )
     return fig
 

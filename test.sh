@@ -38,6 +38,7 @@ EXAMPLES=(
     "example-pattern-clustered.webp"
     "example-pattern-bitcoin.webp"
     "example-pattern-hal.webp"
+    "example-pattern-blue-noise.webp"
     "example-brand-btcat.webp"
     "example-brand-lightning.webp"
     "example-brand-cypherpunk.webp"

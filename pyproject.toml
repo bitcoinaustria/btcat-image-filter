@@ -13,7 +13,6 @@ dependencies = [
     "numpy>=1.24.0",
     "click>=8.0.0",
     "rich>=13.0.0",
-    "textual>=0.40.0",
     "numba>=0.60.0",
     "dash>=4.0.0",
     "dash-bootstrap-components>=2.0.4",
