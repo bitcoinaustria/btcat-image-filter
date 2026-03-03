@@ -17,7 +17,6 @@ Image dithering/filter tool that applies effects to a portion of an image using 
 - **Smart naming**: Automatic output naming with collision avoidance
 - **Zero-configuration**: Ready to run out of the box with UV
 - **Shaded Dithering**: Brand dots are shaded proportionally to the underlying image darkness
-- **Interactive TUI**: Terminal UI to experiment with parameters in real-time
 
 ## Examples
 
@@ -197,19 +196,9 @@ uv sync
 ./effect.sh image.png
 ```
 
-### Interactive TUI & Web UI
+### Web UI
 
-Launch the interactive Terminal User Interface to experiment with settings in real-time.
-
-```bash
-# Start TUI with an image
-uv run python tui.py image.webp
-
-# Or just run TUI and select file from list
-uv run python tui.py
-```
-
-Alternatively, launch the local Web UI to experiment with a visual dashboard that supports zoomable previews and drag-and-drop file uploading.
+Launch the local Web UI to experiment with a visual dashboard that supports zoomable previews and drag-and-drop file uploading.
 
 ```bash
 # Start Web UI on localhost:8050

@@ -20,7 +20,6 @@ More info is in ./README.md
   - **cli.py** - Command-line interface
   - **core/** - Core logic (pipeline, utils)
   - **processing/** - Image processing algorithms (dither, filters, masks)
-  - **tui/** - Terminal User Interface
   - **constants.py** - Global constants
 - **pyproject.toml** - UV project configuration with dependencies (Pillow, NumPy, Click)
 
