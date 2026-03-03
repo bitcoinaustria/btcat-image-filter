@@ -284,6 +284,7 @@ Choose different dithering algorithms with `--pattern`.
 | **Clustered-dot** | Newspaper-style clusters | ![Clustered](examples/example-pattern-clustered.webp) |
 | **Bitcoin** | Custom pattern inspired by Bitcoin grid | ![Bitcoin](examples/example-pattern-bitcoin.webp) |
 | **Hal** | Tribute to Hal Finney (PGP-era terminal style) | ![Hal](examples/example-pattern-hal.webp) |
+| **Blue Noise** | Void-and-cluster 64x64 matrix (uniform, no visible structure) | ![Blue Noise](examples/example-pattern-blue-noise.webp) |
 
 ```bash
 # Ordered Bayer matrix
@@ -294,6 +295,9 @@ Choose different dithering algorithms with `--pattern`.
 
 # Hal Finney tribute (scanlines + noise)
 ./effect.sh --pattern=hal --grayscale image.webp
+
+# Blue noise (least visible structure, preserves detail)
+./effect.sh --pattern=blue-noise --grayscale image.webp
 ```
 
 ### Branding

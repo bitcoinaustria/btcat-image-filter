@@ -185,6 +185,13 @@ uv run python main.py "$INPUT_IMG" \
     --seed=$SEED \
     --output="$OUTPUT_DIR/example-pattern-hal.webp"
 
+echo "Generating example-pattern-blue-noise.webp..."
+uv run python main.py "$INPUT_IMG" \
+    --pattern=blue-noise \
+    --grayscale \
+    --seed=$SEED \
+    --output="$OUTPUT_DIR/example-pattern-blue-noise.webp"
+
 # Brand Palettes
 echo "Generating example-brand-btcat.jpg..."
 uv run python main.py "$INPUT_IMG" \

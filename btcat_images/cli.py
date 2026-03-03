@@ -28,7 +28,7 @@ from .core.pipeline import dither_image
 )
 @click.option(
     '--pattern',
-    type=click.Choice(['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal'], case_sensitive=False),
+    type=click.Choice(['floyd-steinberg', 'ordered', 'atkinson', 'clustered-dot', 'bitcoin', 'hal', 'blue-noise'], case_sensitive=False),
     default='floyd-steinberg',
     show_default=True,
     help='Dithering pattern to use.'

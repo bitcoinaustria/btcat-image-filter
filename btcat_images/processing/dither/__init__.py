@@ -1,7 +1,7 @@
 from typing import Optional
 import numpy as np
 import numpy.typing as npt
-from ...constants import DitherPattern, BAYER_8x8, CLUSTERED_8x8, BITCOIN_8x8
+from ...constants import DitherPattern, BAYER_8x8, CLUSTERED_8x8, BITCOIN_8x8, BLUE_NOISE_64x64
 
 from .floyd_steinberg import floyd_steinberg_dither
 from .ordered import ordered_dither
@@ -42,6 +42,10 @@ def apply_dithering_algorithm(
         case 'bitcoin':
             return ordered_dither(
                 image_array, threshold, BITCOIN_8x8, threshold_offset, density_mask, seed
+            )
+        case 'blue-noise':
+            return ordered_dither(
+                image_array, threshold, BLUE_NOISE_64x64, threshold_offset, density_mask, seed
             )
         case 'hal':
             return hal_dither(
