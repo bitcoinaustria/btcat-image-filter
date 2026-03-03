@@ -51,7 +51,7 @@ app.layout = dbc.Container([
 
                 # Mode Settings
                 dbc.Card([
-                    dbc.CardHeader("Mode"),
+                    dbc.CardHeader("Mode", className="py-1 px-2"),
                     dbc.CardBody([
                         dbc.RadioItems(
                             id="input-mode",
@@ -61,46 +61,15 @@ app.layout = dbc.Container([
                             ],
                             value="default",
                             inline=True,
-                            className="mb-2"
                         )
-                    ])
-                ], className="mb-3"),
+                    ], className="py-2 px-2")
+                ], className="mb-2"),
 
-                # Global Settings
+                # Layout (shared between modes)
                 dbc.Card([
-                    dbc.CardHeader("Global Settings"),
+                    dbc.CardHeader("Layout", className="py-1 px-2"),
                     dbc.CardBody([
-                        dbc.Label("Pattern"),
-                        dcc.Dropdown(
-                            id='input-pattern',
-                            options=[{'label': p.title(), 'value': p} for p in get_args(DitherPattern)],
-                            value='floyd-steinberg',
-                            clearable=False,
-                            className="mb-2"
-                        ),
-
-                        dbc.Label("Brand / Color"),
-                        dcc.Dropdown(
-                            id='input-brand',
-                            options=[{'label': b.upper(), 'value': b} for b in BRANDS.keys()],
-                            value='btcat',
-                            clearable=False,
-                            className="mb-2"
-                        ),
-
-                        dbc.Label("Background"),
-                        dcc.Dropdown(
-                            id='input-background',
-                            options=[
-                                {'label': 'White', 'value': 'white'},
-                                {'label': 'Dark', 'value': 'dark'}
-                            ],
-                            value='white',
-                            clearable=False,
-                            className="mb-2"
-                        ),
-
-                        dbc.Label("Cut Direction"),
+                        dbc.Label("Cut Direction", className="small mb-0"),
                         dcc.Dropdown(
                             id='input-cut',
                             options=[
@@ -109,167 +78,206 @@ app.layout = dbc.Container([
                             ],
                             value='vertical',
                             clearable=False,
-                            className="mb-2"
+                            className="mb-1"
                         ),
 
-                        dbc.Label("Cut Position"),
+                        dbc.Label("Cut Position", className="small mb-0"),
                         dcc.Slider(
                             id='input-pos',
                             min=0.0, max=1.0, step=0.01,
                             value=0.382,
                             marks={0: '0%', 0.5: '50%', 1: '100%'},
-                            className="mb-3"
+                            className="mb-1"
                         ),
 
                         dbc.Row([
                             dbc.Col(dbc.Checklist(
-                                options=[{"label": "Grayscale Original", "value": "grayscale"}],
+                                options=[{"label": "Grayscale", "value": "grayscale"}],
                                 value=["grayscale"],
                                 id="input-grayscale",
                                 switch=True,
+                                className="small",
                             ))
-                        ], className="mb-2"),
+                        ]),
+                    ], className="py-2 px-2")
+                ], className="mb-2"),
+
+                # Dither Settings (default mode only)
+                dbc.Card([
+                    dbc.CardHeader("Dither Settings", className="py-1 px-2"),
+                    dbc.CardBody([
+                        dbc.Label("Pattern", className="small mb-0"),
+                        dcc.Dropdown(
+                            id='input-pattern',
+                            options=[{'label': p.title(), 'value': p} for p in get_args(DitherPattern)],
+                            value='floyd-steinberg',
+                            clearable=False,
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Brand / Color", className="small mb-0"),
+                        dcc.Dropdown(
+                            id='input-brand',
+                            options=[{'label': b.upper(), 'value': b} for b in BRANDS.keys()],
+                            value='btcat',
+                            clearable=False,
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Background", className="small mb-0"),
+                        dcc.Dropdown(
+                            id='input-background',
+                            options=[
+                                {'label': 'White', 'value': 'white'},
+                                {'label': 'Dark', 'value': 'dark'}
+                            ],
+                            value='white',
+                            clearable=False,
+                            className="mb-1"
+                        ),
+
                         dbc.Row([
                             dbc.Col(dbc.Checklist(
                                 options=[{"label": "Satoshi Mode", "value": "satoshi"}],
                                 value=[],
                                 id="input-satoshi",
                                 switch=True,
+                                className="small",
                             ))
-                        ], className="mb-2"),
-                    ])
-                ], id="global-settings-card", className="mb-3"),
+                        ], className="mb-1"),
 
-                # Original Mode Settings
-                dbc.Card([
-                    dbc.CardHeader("Original Mode Settings"),
-                    dbc.CardBody([
-                        dbc.Label("Point Size"),
-                        dcc.Slider(
-                            id='input-point-size',
-                            min=1, max=8, step=1,
-                            value=1,
-                            marks={1: '1', 4: '4', 8: '8'},
-                            className="mb-3"
-                        ),
-
-                        dbc.Label("Brightness"),
-                        dcc.Slider(
-                            id='input-brightness',
-                            min=0.0, max=2.0, step=0.1,
-                            value=1.0,
-                            marks={0: '0', 1: '1', 2: '2'},
-                            className="mb-3"
-                        ),
-
-                        dbc.Label("Contrast"),
-                        dcc.Slider(
-                            id='input-contrast',
-                            min=0.0, max=2.0, step=0.1,
-                            value=1.0,
-                            marks={0: '0', 1: '1', 2: '2'},
-                            className="mb-3"
-                        ),
-
-                        dbc.Label("Detail"),
-                        dcc.Slider(
-                            id='input-detail',
-                            min=0.6, max=1.0, step=0.05,
-                            value=1.0,
-                            marks={0.6: '0.6', 0.8: '0.8', 1.0: '1.0'},
-                            className="mb-3"
-                        ),
-
-                        dbc.Label("Bloom Intensity"),
-                        dcc.Slider(
-                            id='input-bloom-intensity',
-                            min=0.0, max=1.0, step=0.05,
-                            value=0.5,
-                            marks={0: '0', 0.5: '0.5', 1: '1'},
-                            className="mb-3"
-                        ),
-
-                        dbc.Label("Bloom Radius"),
-                        dcc.Slider(
-                            id='input-bloom-radius',
-                            min=1.0, max=150.0, step=1.0,
-                            value=75.0,
-                            marks={1: '1', 75: '75', 150: '150'},
-                            className="mb-3"
-                        ),
-                    ])
-                ], id="original-settings-card", className="mb-3", style={"display": "none"}),
-
-                # Tuning Settings
-                dbc.Card([
-                    dbc.CardHeader("Tuning / Effects"),
-                    dbc.CardBody([
-                        dbc.Label("Fade / Density"),
-                        dcc.Slider(
-                            id='input-fade',
-                            min=0.0, max=1.0, step=0.05,
-                            value=1.0,
-                            marks={0: '0', 0.5: '0.5', 1: '1'},
-                            className="mb-3"
-                        ),
-
-                        dbc.Label("Jitter"),
+                        dbc.Label("Jitter", className="small mb-0"),
                         dcc.Slider(
                             id='input-jitter',
                             min=0.0, max=100.0, step=1.0,
-                            value=15.0,
+                            value=30.0,
                             marks={0: '0', 50: '50', 100: '100'},
-                            className="mb-3"
+                            className="mb-1"
                         ),
 
-                        dbc.Label("Glitch Amount"),
-                        dcc.Slider(
-                            id='input-glitch',
-                            min=0.0, max=1.0, step=0.01,
-                            value=0.0,
-                            marks={0: '0', 0.5: '0.5', 1: '1'},
-                            className="mb-3"
-                        ),
-
-                        dbc.Label("Shade Factor"),
+                        dbc.Label("Shade Factor", className="small mb-0"),
                         dcc.Slider(
                             id='input-shade-factor',
                             min=0.0, max=1.0, step=0.05,
                             value=1.0,
                             marks={0: '0', 0.5: '0.5', 1: '1'},
-                            className="mb-3"
+                            className="mb-1"
                         ),
-                        dbc.Label("Shade Quantization (0 = Off)"),
+                        dbc.Label("Shade Quant (0=Off)", className="small mb-0"),
                         dcc.Slider(
                             id='input-shade-quant',
                             min=0, max=32, step=1,
                             value=4,
                             marks={0: 'Off', 4: '4', 16: '16', 32: '32'},
-                            className="mb-3"
+                            className="mb-1"
+                        ),
+                    ], className="py-2 px-2")
+                ], id="global-settings-card", className="mb-2"),
+
+                # Original Mode Settings
+                dbc.Card([
+                    dbc.CardHeader("Original Mode", className="py-1 px-2"),
+                    dbc.CardBody([
+                        dbc.Label("Point Size", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-point-size',
+                            min=1, max=8, step=1,
+                            value=1,
+                            marks={1: '1', 4: '4', 8: '8'},
+                            className="mb-1"
                         ),
 
-                        dbc.Label("Seed"),
+                        dbc.Label("Brightness", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-brightness',
+                            min=0.0, max=2.0, step=0.1,
+                            value=1.0,
+                            marks={0: '0', 1: '1', 2: '2'},
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Contrast", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-contrast',
+                            min=0.0, max=2.0, step=0.1,
+                            value=1.0,
+                            marks={0: '0', 1: '1', 2: '2'},
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Detail", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-detail',
+                            min=0.6, max=1.0, step=0.05,
+                            value=1.0,
+                            marks={0.6: '0.6', 0.8: '0.8', 1.0: '1.0'},
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Bloom Intensity", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-bloom-intensity',
+                            min=0.0, max=1.0, step=0.05,
+                            value=0.5,
+                            marks={0: '0', 0.5: '0.5', 1: '1'},
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Bloom Radius", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-bloom-radius',
+                            min=1.0, max=150.0, step=1.0,
+                            value=75.0,
+                            marks={1: '1', 75: '75', 150: '150'},
+                            className="mb-1"
+                        ),
+                    ], className="py-2 px-2")
+                ], id="original-settings-card", className="mb-2", style={"display": "none"}),
+
+                # Effects (shared between modes)
+                dbc.Card([
+                    dbc.CardHeader("Effects", className="py-1 px-2"),
+                    dbc.CardBody([
+                        dbc.Label("Fade / Density", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-fade',
+                            min=0.0, max=1.0, step=0.05,
+                            value=1.0,
+                            marks={0: '0', 0.5: '0.5', 1: '1'},
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Glitch", className="small mb-0"),
+                        dcc.Slider(
+                            id='input-glitch',
+                            min=0.0, max=1.0, step=0.01,
+                            value=0.0,
+                            marks={0: '0', 0.5: '0.5', 1: '1'},
+                            className="mb-1"
+                        ),
+
+                        dbc.Label("Seed", className="small mb-0"),
                         dcc.Slider(
                             id='input-seed',
                             min=0, max=2121, step=1,
                             value=0,
                             marks={0: '0', 2121: '2121'},
-                            className="mb-3"
+                            className="mb-1"
                         ),
-                    ])
-                ], id="tuning-effects-card", className="mb-3"),
+                    ], className="py-2 px-2")
+                ], className="mb-2"),
 
                 # Masks Section
                 dbc.Card([
-                    dbc.CardHeader("Masking Areas"),
+                    dbc.CardHeader("Masks", className="py-1 px-2"),
                     dbc.CardBody([
                         dbc.ButtonGroup([
-                            dbc.Button("Add Rectangle", id="btn-add-rect", color="primary", size="sm"),
-                            dbc.Button("Add Circle", id="btn-add-circle", color="secondary", size="sm"),
-                        ], className="mb-3 w-100"),
+                            dbc.Button("+ Rect", id="btn-add-rect", color="primary", size="sm"),
+                            dbc.Button("+ Circle", id="btn-add-circle", color="secondary", size="sm"),
+                        ], className="mb-2 w-100"),
                         html.Div(id="masks-container", children=[])
-                    ])
-                ], className="mb-3"),
+                    ], className="py-2 px-2")
+                ], className="mb-2"),
 
                 html.Div(id="controls-container")
             ]),
@@ -424,15 +432,14 @@ def create_figure(img_src):
 
 @app.callback(
     Output('global-settings-card', 'style'),
-    Output('tuning-effects-card', 'style'),
     Output('original-settings-card', 'style'),
     Input('input-mode', 'value')
 )
 def toggle_mode_settings(mode):
     if mode == 'original':
-        return {"display": "none"}, {"display": "none"}, {"display": "block"}
+        return {"display": "none"}, {"display": "block"}
     else:
-        return {"display": "block"}, {"display": "block"}, {"display": "none"}
+        return {"display": "block"}, {"display": "none"}
 
 @app.callback(
     Output('input-cut', 'disabled'),
@@ -591,13 +598,15 @@ def update_cli_command(filename, mode, pattern, brand, background, cut, pos, gra
 
     if rect_inputs:
         for r in rect_inputs:
-            if r: parts.append(f'--rect="{r.replace(" ", "")}"')
-            has_shapes = True
+            if r:
+                parts.append(f'--rect="{r.replace(" ", "")}"')
+                has_shapes = True
 
     if circle_inputs:
         for c in circle_inputs:
-            if c: parts.append(f'--circle="{c.replace(" ", "")}"')
-            has_shapes = True
+            if c:
+                parts.append(f'--circle="{c.replace(" ", "")}"')
+                has_shapes = True
 
     if not has_shapes:
         if cut != 'vertical': parts.append(f'--cut={cut}')
@@ -615,7 +624,7 @@ def update_cli_command(filename, mode, pattern, brand, background, cut, pos, gra
         if pattern != 'floyd-steinberg': parts.append(f'--pattern={pattern}')
         if brand != 'btcat': parts.append(f'--brand={brand}')
         if background != 'white': parts.append(f'--background={background}')
-        if jitter != 15.0: parts.append(f'--jitter={jitter}')
+        if jitter != 30.0: parts.append(f'--jitter={jitter}')
 
         shade = f"{shade_factor}"
         if shade_quant > 0:
@@ -641,11 +650,12 @@ def update_cli_command(filename, mode, pattern, brand, background, cut, pos, gra
     Input("btn-download", "n_clicks"),
     State("store-image-processed", "data"),
     State("store-image-filename", "data"),
+    State("input-mode", "value"),
     State("input-pattern", "value"),
     State("input-brand", "value"),
     prevent_initial_call=True
 )
-def download_image(n_clicks, processed_b64, original_filename, pattern, brand):
+def download_image(n_clicks, processed_b64, original_filename, mode, pattern, brand):
     if not processed_b64:
         return dash.no_update
 
@@ -655,7 +665,10 @@ def download_image(n_clicks, processed_b64, original_filename, pattern, brand):
     if original_filename:
         base, _ = os.path.splitext(original_filename)
 
-    download_filename = f"{base}-{brand}-{pattern}-dither.webp"
+    if mode == 'original':
+        download_filename = f"{base}-original-dither.webp"
+    else:
+        download_filename = f"{base}-{brand}-{pattern}-dither.webp"
 
     # Decode base64 to bytes
     content_type, content_string = processed_b64.split(',')
