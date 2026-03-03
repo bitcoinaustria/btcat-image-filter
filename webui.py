@@ -8,6 +8,20 @@ import io
 from PIL import Image
 from btcat_images.core.pipeline import apply_dither
 import plotly.graph_objects as go
+from pathlib import Path
+
+DEFAULT_IMAGE = Path(__file__).parent / "test-image.jpg"
+
+def _load_default_image():
+    """Load the default test image as a data URI, or None if not found."""
+    if not DEFAULT_IMAGE.exists():
+        return None, None
+    with open(DEFAULT_IMAGE, "rb") as f:
+        img_bytes = f.read()
+    b64 = base64.b64encode(img_bytes).decode("utf-8")
+    return f"data:image/jpeg;base64,{b64}", DEFAULT_IMAGE.name
+
+_default_b64, _default_filename = _load_default_image()
 
 # Initialize Dash app with Bootstrap theme
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
@@ -302,9 +316,9 @@ app.layout = dbc.Container([
                 dcc.Download(id="download-image"),
 
                 # We need a dcc.Store to hold the base64 encoded strings
-                dcc.Store(id='store-image-original'),
+                dcc.Store(id='store-image-original', data=_default_b64),
                 dcc.Store(id='store-image-processed'),
-                dcc.Store(id='store-image-filename'),
+                dcc.Store(id='store-image-filename', data=_default_filename),
 
                 html.Div(
                     dcc.Graph(
