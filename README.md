@@ -197,7 +197,7 @@ uv sync
 ./effect.sh image.png
 ```
 
-### Interactive TUI
+### Interactive TUI & Web UI
 
 Launch the interactive Terminal User Interface to experiment with settings in real-time.
 
@@ -207,6 +207,13 @@ uv run python tui.py image.webp
 
 # Or just run TUI and select file from list
 uv run python tui.py
+```
+
+Alternatively, launch the local Web UI to experiment with a visual dashboard that supports zoomable previews and drag-and-drop file uploading.
+
+```bash
+# Start Web UI on localhost:8050
+uv run python webui.py
 ```
 
 ### Dithering Modes

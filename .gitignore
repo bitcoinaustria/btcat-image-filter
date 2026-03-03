@@ -44,6 +44,9 @@ env/
 /*.jpeg
 /*.webp
 
+# Logs
+*.log
+
 # OS
 .DS_Store
 Thumbs.db
