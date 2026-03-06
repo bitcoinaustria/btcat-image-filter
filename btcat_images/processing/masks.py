@@ -1,6 +1,54 @@
 import numpy as np
 import numpy.typing as npt
 from typing import Literal
+from numba import njit, prange
+
+@njit(parallel=True, cache=True)
+def _create_circle_mask_jit(width: int, height: int, cx: float, cy: float, r_pixels_sq: float) -> npt.NDArray[np.bool_]:
+    mask = np.zeros((height, width), dtype=np.bool_)
+    for y in prange(height):
+        dy_sq = (y - cy) ** 2
+        for x in range(width):
+            dist_sq = (x - cx) ** 2 + dy_sq
+            if dist_sq <= r_pixels_sq:
+                mask[y, x] = True
+    return mask
+
+@njit(parallel=True, cache=True)
+def _create_gradient_density_mask_jit(
+    width: int, 
+    height: int, 
+    dx: float, 
+    dy: float, 
+    density_start: float, 
+    density_end: float
+) -> npt.NDArray[np.float64]:
+    # Theoretical min/max projection based on unit square corners
+    # (0,0), (1,0), (0,1), (1,1)
+    c1 = 0.0 * dx + 0.0 * dy
+    c2 = 1.0 * dx + 0.0 * dy
+    c3 = 0.0 * dx + 1.0 * dy
+    c4 = 1.0 * dx + 1.0 * dy
+    
+    proj_min = min(c1, min(c2, min(c3, c4)))
+    proj_max = max(c1, max(c2, max(c3, c4)))
+    
+    proj_range = proj_max - proj_min if proj_max > proj_min else 1.0
+    density_diff = density_end - density_start
+    
+    w_inv = 1.0 / max(width - 1, 1)
+    h_inv = 1.0 / max(height - 1, 1)
+    
+    mask = np.empty((height, width), dtype=np.float64)
+    for y in prange(height):
+        yn = y * h_inv
+        for x in range(width):
+            xn = x * w_inv
+            proj = xn * dx + yn * dy
+            proj_norm = (proj - proj_min) / proj_range
+            mask[y, x] = density_start + density_diff * proj_norm
+            
+    return mask
 
 def create_rectangle_mask(
     width: int,
@@ -77,17 +125,9 @@ def create_circle_mask(
 
     # Use average of width and height for radius calculation
     r_pixels = radius * (width + height) / 2.0
+    r_pixels_sq = r_pixels ** 2
 
-    # Create coordinate grids
-    y, x = np.ogrid[:height, :width]
-
-    # Calculate distances from center
-    distances_sq = (x - cx) ** 2 + (y - cy) ** 2
-
-    # Create mask
-    mask = distances_sq <= r_pixels ** 2
-
-    return mask
+    return _create_circle_mask_jit(width, height, cx, cy, r_pixels_sq)
 
 
 def create_gradient_mask(
@@ -168,26 +208,4 @@ def create_gradient_density_mask(
     dx = np.cos(angle_rad)
     dy = np.sin(angle_rad)
 
-    # Create coordinate grids (normalized to [0, 1])
-    y_coords, x_coords = np.ogrid[:height, :width]
-    x_norm = x_coords.astype(float) / max(width - 1, 1)
-    y_norm = y_coords.astype(float) / max(height - 1, 1)
-
-    # Project each pixel position onto the gradient direction
-    # This gives us a value that increases along the gradient direction
-    projection = x_norm * dx + y_norm * dy
-
-    # Normalize projection to [0, 1] range
-    # The projection range depends on the angle
-    proj_min = projection.min()
-    proj_max = projection.max()
-
-    if proj_max > proj_min:
-        projection_normalized = (projection - proj_min) / (proj_max - proj_min)
-    else:
-        projection_normalized = np.zeros_like(projection)
-
-    # Map to [density_start, density_end]
-    mask = density_start + (density_end - density_start) * projection_normalized
-
-    return mask
+    return _create_gradient_density_mask_jit(width, height, dx, dy, density_start, density_end)

@@ -1,6 +1,49 @@
 import numpy as np
 import numpy.typing as npt
 from typing import Optional
+from numba import njit, prange
+
+@njit(parallel=True, cache=True)
+def _ordered_jit(
+    image_array: npt.NDArray[np.integer],
+    matrix: npt.NDArray[np.float64],
+    threshold_shift: float,
+    noise: npt.NDArray[np.float64],
+    density_mask: npt.NDArray[np.float64],
+    density_random: npt.NDArray[np.float64],
+    use_mask: bool
+) -> npt.NDArray[np.uint8]:
+    height, width = image_array.shape
+    mh, mw = matrix.shape
+    result = np.zeros((height, width), dtype=np.uint8)
+
+    for y in prange(height):
+        my = y % mh
+        for x in range(width):
+            mx = x % mw
+            effective_threshold = (matrix[my, mx] * 255.0) + threshold_shift + noise[y, x]
+
+            should_dither = True
+            is_skipped = False
+
+            if use_mask:
+                if density_mask[y, x] == 0.0:
+                    should_dither = False
+                elif density_random[y, x] > density_mask[y, x]:
+                    is_skipped = True
+
+            if should_dither:
+                if is_skipped:
+                    result[y, x] = 255
+                else:
+                    if image_array[y, x] > effective_threshold:
+                        result[y, x] = 255
+                    else:
+                        result[y, x] = 0
+            else:
+                result[y, x] = np.uint8(image_array[y, x])
+
+    return result
 
 def ordered_dither(
     image_array: npt.NDArray[np.integer],
@@ -30,53 +73,29 @@ def ordered_dither(
         Binary dithered array (uint8).
     """
     height, width = image_array.shape
-    mh, mw = matrix.shape
+    rng = np.random.default_rng(seed=seed)
 
-    # Tile the matrix to cover the image
-    tiled_matrix = np.tile(matrix, (height // mh + 1, width // mw + 1))
-    tiled_matrix = tiled_matrix[:height, :width]
+    threshold_shift = float(threshold) - 128.0 + threshold_offset
 
-    # Calculate effective threshold for each pixel
-    # Map matrix (0-1) to (0-255) and shift by user threshold
-    # Base threshold 128 -> center.
-    # We want: pixel > matrix_val * 255 + (threshold - 128)
-
-    threshold_shift = threshold - 128.0 + threshold_offset
-    effective_thresholds = (tiled_matrix * 255.0) + threshold_shift
-
-    # Add random jitter to break up regular patterns
+    noise = np.zeros((height, width), dtype=np.float64)
     if jitter > 0.0:
-        rng = np.random.default_rng(seed=seed)
-        random_noise = rng.uniform(-jitter, jitter, size=(height, width))
-        effective_thresholds = effective_thresholds + random_noise
+        noise = rng.uniform(-jitter, jitter, size=(height, width))
 
-    # Start with original image values
-    result = image_array.astype(np.uint8).copy()
-
-    # Create dithering mask (where to apply dithering)
-    dither_mask_pixels = np.ones((height, width), dtype=bool)
+    use_mask = False
+    density_mask_arr = np.zeros((1, 1), dtype=np.float64)
+    density_random = np.zeros((1, 1), dtype=np.float64)
 
     if density_mask is not None:
-        # Mark pixels outside dithered region (density_mask == 0) to preserve
-        outside_region = density_mask == 0.0
-        dither_mask_pixels[outside_region] = False
-
-        # For pixels inside the region, apply probabilistic fade
-        rng = np.random.default_rng(seed=seed)
+        use_mask = True
+        density_mask_arr = density_mask
         density_random = rng.uniform(0.0, 1.0, size=(height, width))
-        # Skip pixels where random > density (fade effect)
-        skip_mask = density_random > density_mask
-        # But only within the dithered region
-        skip_mask = skip_mask & ~outside_region
-    else:
-        skip_mask = np.zeros((height, width), dtype=bool)
 
-    # Determine which pixels should be white (255) vs black (0)
-    white_pixels = (image_array > effective_thresholds) & dither_mask_pixels
-    black_pixels = (image_array <= effective_thresholds) & dither_mask_pixels
-
-    # Apply dithering only where dither_mask_pixels is True
-    result[white_pixels | skip_mask] = 255
-    result[black_pixels & ~skip_mask] = 0
-
-    return result
+    return _ordered_jit(
+        image_array,
+        matrix,
+        threshold_shift,
+        noise,
+        density_mask_arr,
+        density_random,
+        use_mask
+    )
