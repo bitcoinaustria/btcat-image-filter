@@ -1,6 +1,18 @@
 import numpy as np
 import numpy.typing as npt
 from typing import Optional
+from numba import njit
+
+@njit(cache=True)
+def _glitch_indices_jit(height: int, y1s: npt.NDArray[np.int64], y2s: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
+    indices = np.arange(height)
+    num_swaps = len(y1s)
+    for i in range(num_swaps):
+        y1, y2 = y1s[i], y2s[i]
+        tmp = indices[y1]
+        indices[y1] = indices[y2]
+        indices[y2] = tmp
+    return indices
 
 def glitch_swap_rows(
     image_array: npt.NDArray[np.integer],
@@ -27,22 +39,16 @@ def glitch_swap_rows(
     # Determine number of swaps based on intensity (max 50% of rows for 1.0)
     num_swaps = int(height * intensity * 0.5)
 
-    # Optimization: Use indices array to perform swaps instead of moving large image rows
-    indices = np.arange(height)
-
     if num_swaps > 0:
-        # Generate all random indices at once
-        # We need 2 * num_swaps integers
-        # Interleave to match the RNG consumption order of the original loop
-        # Loop was: y1 = rng(), y2 = rng()
+        # Generate random indices
         random_indices = rng.integers(0, height, size=2 * num_swaps)
         y1s = random_indices[0::2]
         y2s = random_indices[1::2]
 
-        # Perform swaps on indices array
-        for i in range(num_swaps):
-            y1, y2 = y1s[i], y2s[i]
-            indices[y1], indices[y2] = indices[y2], indices[y1]
+        # Perform swaps on indices array using JIT
+        indices = _glitch_indices_jit(height, y1s, y2s)
 
-    # Apply the shuffled indices to the image using advanced indexing
-    return image_array[indices]
+        # Apply the shuffled indices to the image using advanced indexing
+        return image_array[indices]
+
+    return image_array

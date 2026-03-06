@@ -1,6 +1,43 @@
 import numpy as np
 import numpy.typing as npt
 from typing import Optional
+from numba import njit, prange
+
+@njit(parallel=True, cache=True)
+def _hal_jit(
+    img: npt.NDArray[np.float64],
+    threshold: float,
+    threshold_offset: float,
+    noise: npt.NDArray[np.float64],
+    density_mask: npt.NDArray[np.float64],
+    density_random: npt.NDArray[np.float64],
+    use_mask: bool
+) -> npt.NDArray[np.uint8]:
+    height, width = img.shape
+    result = np.zeros((height, width), dtype=np.uint8)
+
+    for y in prange(height):
+        # Calculate scanline pattern for this row
+        scanline = np.sin(y * 0.8) * 40.0
+        for x in range(width):
+            adjusted_threshold = threshold + scanline + noise[y, x] + threshold_offset
+
+            should_dither = True
+            if use_mask:
+                if density_mask[y, x] == 0.0:
+                    should_dither = False
+                    result[y, x] = np.uint8(img[y, x])
+                elif density_random[y, x] > density_mask[y, x]:
+                    should_dither = False
+                    result[y, x] = 255
+
+            if should_dither:
+                if img[y, x] > adjusted_threshold:
+                    result[y, x] = 255
+                else:
+                    result[y, x] = 0
+
+    return result
 
 def hal_dither(
     image_array: npt.NDArray[np.integer],
@@ -25,44 +62,28 @@ def hal_dither(
     Returns:
         Binary dithered array (uint8).
     """
-    img = image_array.astype(float)
+    img = image_array.astype(np.float64)
     height, width = img.shape
     rng = np.random.default_rng(seed=seed)
-
-    # Create scanline effect: modify threshold based on Y coordinate
-    # Alternating lines or every 4th line darker/lighter
-    y_coords, x_coords = np.indices((height, width))
-
-    # Scanline pattern: sine wave
-    scanline_pattern = np.sin(y_coords * 0.8) * 40.0
 
     # Digital noise (subtle)
     noise = rng.normal(0, 20.0, size=(height, width))
 
-    # Combine
-    adjusted_thresholds = threshold + scanline_pattern + noise + threshold_offset
+    use_mask = False
+    density_mask_arr = np.zeros((1, 1), dtype=np.float64)
+    density_random = np.zeros((1, 1), dtype=np.float64)
 
-    # Start with original image values
-    result = image_array.astype(np.uint8).copy()
-
-    # Density mask check
-    should_dither = np.ones((height, width), dtype=bool)
     if density_mask is not None:
-        # Pixels outside dithered region (density_mask == 0) should not be modified
-        outside_region = density_mask == 0.0
-        # For pixels inside region, apply probabilistic fade
+        use_mask = True
+        density_mask_arr = density_mask
         density_random = rng.uniform(0.0, 1.0, size=(height, width))
-        skip_fade = (density_random > density_mask) & ~outside_region
-        should_dither = ~outside_region & ~skip_fade
 
-        # Skipped pixels (fade effect) within region become white
-        result[skip_fade] = 255
-
-    # Apply dithering where should_dither is True
-    white_pixels = (img > adjusted_thresholds) & should_dither
-    black_pixels = (img <= adjusted_thresholds) & should_dither
-
-    result[white_pixels] = 255
-    result[black_pixels] = 0
-
-    return result
+    return _hal_jit(
+        img,
+        float(threshold),
+        threshold_offset,
+        noise,
+        density_mask_arr,
+        density_random,
+        use_mask
+    )

@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
-from numba import njit
+from numba import njit, prange
 
 from ...constants import ORIGINAL_PALETTE
 
@@ -23,7 +23,12 @@ def _find_closest_color(r: float, g: float, b: float, palette: NDArray) -> int:
 
 
 @njit(cache=True)
-def _floyd_steinberg_3color(pixels: NDArray, width: int, height: int, palette: NDArray) -> NDArray:
+def _floyd_steinberg_3color(
+    pixels: NDArray, 
+    width: int, 
+    height: int, 
+    palette: NDArray
+) -> NDArray:
     """3-color Floyd-Steinberg error diffusion on RGB data.
 
     Operates on a float32 (h*w, 4) array in-place, distributing quantization
@@ -132,7 +137,7 @@ def original_dither(
         work_array[:, :, :3] *= brightness
 
     if contrast != 1.0:
-        contrast_val = contrast / 5.0  # JS uses contrast/500 with slider 0-200
+        contrast_val = contrast / 5.0
         factor = (259.0 * (contrast_val * 255.0 + 255.0)) / (255.0 * (259.0 - contrast_val * 255.0))
         work_array[:, :, :3] = factor * (work_array[:, :, :3] - 128.0) + 128.0
 
@@ -149,7 +154,7 @@ def original_dither(
     pixels_flat = _floyd_steinberg_3color(pixels_flat, ww, wh, palette_array)
 
     # Clamp and reshape back
-    result = np.clip(pixels_flat[:, :3], 0, 255).reshape(wh, ww, 3).astype(np.uint8)
+    result = np.clip(pixels_flat[:, :3], 0.0, 255.0).reshape(wh, ww, 3).astype(np.uint8)
 
     # Step 5: Upscale with nearest-neighbor for pixel look
     out_w = ww * point_size
