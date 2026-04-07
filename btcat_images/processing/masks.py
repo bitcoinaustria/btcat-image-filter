@@ -15,6 +15,20 @@ def _create_circle_mask_jit(width: int, height: int, cx: float, cy: float, r_pix
     return mask
 
 @njit(parallel=True, cache=True)
+def _apply_circles_mask_jit(mask: npt.NDArray[np.bool_], width: int, height: int, circles_data: npt.NDArray[np.float64]) -> None:
+    num_circles = circles_data.shape[0]
+    for y in prange(height):
+        for x in range(width):
+            if not mask[y, x]:
+                for i in range(num_circles):
+                    cx = circles_data[i, 0]
+                    cy = circles_data[i, 1]
+                    r_sq = circles_data[i, 2]
+                    if (x - cx)**2 + (y - cy)**2 <= r_sq:
+                        mask[y, x] = True
+                        break
+
+@njit(parallel=True, cache=True)
 def _create_gradient_density_mask_jit(
     width: int, 
     height: int, 
@@ -50,6 +64,41 @@ def _create_gradient_density_mask_jit(
             
     return mask
 
+def apply_rectangle_to_mask(
+    mask: npt.NDArray[np.bool_],
+    width: int,
+    height: int,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float
+) -> None:
+    """
+    Apply a rectangular mask in-place to an existing boolean mask array.
+    """
+    # Convert fractions to pixel coordinates
+    px1 = int(x1 * width)
+    py1 = int(y1 * height)
+    px2 = int(x2 * width)
+    py2 = int(y2 * height)
+
+    # Ensure coordinates are in correct order
+    if px1 > px2:
+        px1, px2 = px2, px1
+    if py1 > py2:
+        py1, py2 = py2, py1
+
+    # Clip to image bounds
+    px1 = max(0, min(px1, width))
+    px2 = max(0, min(px2, width))
+    py1 = max(0, min(py1, height))
+    py2 = max(0, min(py2, height))
+
+    # Fill the rectangle
+    if px2 > px1 and py2 > py1:
+        mask[py1:py2, px1:px2] = True
+
+
 def create_rectangle_mask(
     width: int,
     height: int,
@@ -73,30 +122,32 @@ def create_rectangle_mask(
         Boolean mask array where True indicates dithering area
     """
     mask = np.zeros((height, width), dtype=bool)
-
-    # Convert fractions to pixel coordinates
-    px1 = int(x1 * width)
-    py1 = int(y1 * height)
-    px2 = int(x2 * width)
-    py2 = int(y2 * height)
-
-    # Ensure coordinates are in correct order
-    if px1 > px2:
-        px1, px2 = px2, px1
-    if py1 > py2:
-        py1, py2 = py2, py1
-
-    # Clip to image bounds
-    px1 = max(0, min(px1, width))
-    px2 = max(0, min(px2, width))
-    py1 = max(0, min(py1, height))
-    py2 = max(0, min(py2, height))
-
-    # Fill the rectangle
-    if px2 > px1 and py2 > py1:
-        mask[py1:py2, px1:px2] = True
-
+    apply_rectangle_to_mask(mask, width, height, x1, y1, x2, y2)
     return mask
+
+
+def apply_circles_to_mask(
+    mask: npt.NDArray[np.bool_],
+    width: int,
+    height: int,
+    circles: list[tuple[float, float, float]]
+) -> None:
+    """
+    Apply multiple circular masks in-place to an existing boolean mask array.
+    """
+    if not circles:
+        return
+
+    circles_data = np.zeros((len(circles), 3), dtype=np.float64)
+    for i, (center_x, center_y, radius) in enumerate(circles):
+        cx = center_x * width
+        cy = center_y * height
+        r_pixels = radius * (width + height) / 2.0
+        circles_data[i, 0] = cx
+        circles_data[i, 1] = cy
+        circles_data[i, 2] = r_pixels ** 2
+
+    _apply_circles_mask_jit(mask, width, height, circles_data)
 
 
 def create_circle_mask(
