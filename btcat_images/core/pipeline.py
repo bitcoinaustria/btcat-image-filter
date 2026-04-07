@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..constants import BRANDS, DARK_BACKGROUND, GOLDEN_RATIO, DitherPattern
-from ..processing.masks import create_rectangle_mask, create_circle_mask, create_gradient_density_mask
+from ..processing.masks import apply_rectangle_to_mask, apply_circles_to_mask, create_gradient_density_mask
 from ..processing.filters.glitch import glitch_swap_rows
 from ..processing.filters.bloom import apply_bloom
 from ..processing.dither import apply_dithering_algorithm
@@ -49,13 +49,10 @@ def _apply_original_mode(
 
     if rectangles:
         for x1, y1, x2, y2 in rectangles:
-            rect_mask = create_rectangle_mask(width, height, x1, y1, x2, y2)
-            dither_mask = np.logical_or(dither_mask, rect_mask)
+            apply_rectangle_to_mask(dither_mask, width, height, x1, y1, x2, y2)
 
     if circles:
-        for cx, cy, r in circles:
-            circle_mask = create_circle_mask(width, height, cx, cy, r)
-            dither_mask = np.logical_or(dither_mask, circle_mask)
+        apply_circles_to_mask(dither_mask, width, height, circles)
 
     # Apply original dithering to the full image
     dithered_rgb = original_dither(
@@ -235,14 +232,11 @@ def apply_dither(
     # Add all rectangles
     if rectangles:
         for x1, y1, x2, y2 in rectangles:
-            rect_mask = create_rectangle_mask(w, h, x1, y1, x2, y2)
-            dither_mask |= rect_mask
+            apply_rectangle_to_mask(dither_mask, w, h, x1, y1, x2, y2)
 
     # Add all circles
     if circles:
-        for cx, cy, r in circles:
-            circle_mask = create_circle_mask(w, h, cx, cy, r)
-            dither_mask |= circle_mask
+        apply_circles_to_mask(dither_mask, w, h, circles)
 
     # Apply gradient or uniform fade if specified (applies to all dithered areas)
     density_mask: Optional[npt.NDArray[np.float64]] = None
