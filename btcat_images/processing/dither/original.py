@@ -8,18 +8,31 @@ from ...constants import ORIGINAL_PALETTE
 
 @njit(cache=True)
 def _find_closest_color(r: float, g: float, b: float, palette: NDArray) -> int:
-    """Find index of closest color in palette using Euclidean distance."""
-    min_dist = np.inf
-    best = 0
-    for i in range(palette.shape[0]):
-        dr = r - palette[i, 0]
-        dg = g - palette[i, 1]
-        db = b - palette[i, 2]
-        dist = dr * dr + dg * dg + db * db
-        if dist < min_dist:
-            min_dist = dist
-            best = i
-    return best
+    """Find index of closest color in palette using Euclidean distance.
+
+    Optimized: Unrolled loop for exactly 3 colors (as per original mode design).
+    """
+    dr0 = r - palette[0, 0]
+    dg0 = g - palette[0, 1]
+    db0 = b - palette[0, 2]
+    dist0 = dr0 * dr0 + dg0 * dg0 + db0 * db0
+
+    dr1 = r - palette[1, 0]
+    dg1 = g - palette[1, 1]
+    db1 = b - palette[1, 2]
+    dist1 = dr1 * dr1 + dg1 * dg1 + db1 * db1
+
+    dr2 = r - palette[2, 0]
+    dg2 = g - palette[2, 1]
+    db2 = b - palette[2, 2]
+    dist2 = dr2 * dr2 + dg2 * dg2 + db2 * db2
+
+    if dist0 <= dist1 and dist0 <= dist2:
+        return 0
+    elif dist1 <= dist2:
+        return 1
+    else:
+        return 2
 
 
 @njit(cache=True)
